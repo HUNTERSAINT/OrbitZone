@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Confluence"
+description = "A mobile-first dating app for adults in Lokoja, Nigeria, with verified profiles, discovery, matches, messaging, search preferences, and member safety tools."
+version = "1.0.0"
+id = "artifacts/confluence"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 21372
+
+[services.development]
+run = "pnpm --filter @workspace/confluence run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/confluence", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/confluence/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "21372"
+BASE_PATH = "/"

@@ -2,14 +2,24 @@ openapi: 3.1.0
 info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
-  version: 0.1.0
-  description: API specification
+  version: 0.2.0
+  description: Orbit Zone authentication, adult profiles, verification, discovery, and photo upload API.
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: Auth
+    description: Email or phone registration and session management.
+  - name: Profiles
+    description: The authenticated user's profile and selfie verification submission.
+  - name: Storage
+    description: Secure profile photo and verification selfie uploads.
+  - name: Discovery
+    description: Swipe feed and persistent like/pass decisions.
+  - name: Admin
+    description: Restricted account verification review actions.
 paths:
   /healthz:
     get:
@@ -24,6 +34,338 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /auth/register:
+    post:
+      operationId: registerAccount
+      tags: [Auth]
+      summary: Register an adult Lokoja resident
+      description: Creates a profile and starts a secure session. The server rejects anyone under 18.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegistrationInput"
+      responses:
+        "201":
+          description: Account registered and session started.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionUser"
+        "400":
+          description: Invalid registration details or user is under 18.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "409":
+          description: Email address or phone number is already registered.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "429":
+          description: Registration rate limit exceeded.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /auth/login:
+    post:
+      operationId: loginAccount
+      tags: [Auth]
+      summary: Start a session with an email address or phone number
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginInput"
+      responses:
+        "200":
+          description: Session started.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionUser"
+        "400":
+          description: Invalid login details.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "401":
+          description: Invalid email/phone number or password.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "429":
+          description: Login rate limit exceeded.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /auth/logout:
+    post:
+      operationId: logoutAccount
+      tags: [Auth]
+      summary: End the current session
+      responses:
+        "204":
+          description: Session ended.
+  /auth/me:
+    get:
+      operationId: getCurrentUser
+      tags: [Auth]
+      summary: Get the current session user
+      responses:
+        "200":
+          description: Current session user and profile.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionUser"
+        "401":
+          description: No active session.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /profiles/me:
+    get:
+      operationId: getMyProfile
+      tags: [Profiles]
+      summary: Get the current user's profile
+      responses:
+        "200":
+          description: Current user's profile.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionUser"
+        "401":
+          description: Authentication required.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+    patch:
+      operationId: updateMyProfile
+      tags: [Profiles]
+      summary: Update the current user's profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProfileUpdate"
+      responses:
+        "200":
+          description: Profile updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionUser"
+        "400":
+          description: Invalid profile details.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "401":
+          description: Authentication required.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /profiles/me/verification-selfie:
+    post:
+      operationId: submitVerificationSelfie
+      tags: [Profiles]
+      summary: Submit or replace a selfie for manual verification
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VerificationSelfieInput"
+      responses:
+        "200":
+          description: Selfie submitted and awaiting admin review.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionUser"
+        "400":
+          description: Invalid selfie object path.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "401":
+          description: Authentication required.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /account:
+    delete:
+      operationId: deleteMyAccount
+      tags: [Auth]
+      summary: Permanently delete the current user's account
+      responses:
+        "204":
+          description: Account and profile data deleted.
+        "401":
+          description: Authentication required.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /storage/uploads/request-url:
+    post:
+      operationId: requestUploadUrl
+      tags: [Storage]
+      summary: Request a presigned upload URL for a profile image
+      description: Uploads are limited to JPEG, PNG, and WebP and capped at 5 MiB. A short-lived, rate-limited onboarding upload may be requested before registration; profile edits require a session.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UploadUrlRequest"
+      responses:
+        "200":
+          description: Presigned upload URL generated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UploadUrlResponse"
+        "400":
+          description: Invalid file metadata.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "429":
+          description: Upload URL rate limit exceeded.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /feed:
+    get:
+      operationId: getDiscoveryFeed
+      tags: [Discovery]
+      summary: Get profiles the current member has not already passed or liked
+      description: Returns opposite-gender profiles in Lokoja, excluding banned, blocked, and previously swiped accounts. Men see women who selected Relationship or Friends with Benefits.
+      responses:
+        "200":
+          description: Current discovery cards.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DiscoveryFeed"
+        "401":
+          description: Authentication required.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /swipes/{profileId}:
+    post:
+      operationId: recordSwipe
+      tags: [Discovery]
+      summary: Like or pass on a profile
+      parameters:
+        - name: profileId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SwipeInput"
+      responses:
+        "200":
+          description: Swipe recorded and mutual match status returned.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SwipeResult"
+        "400":
+          description: Invalid profile or swipe action.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "401":
+          description: Authentication required.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "404":
+          description: Profile is not available for discovery.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "409":
+          description: This profile already has a different recorded swipe.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /admin/users/{userId}/verification:
+    patch:
+      operationId: reviewUserVerification
+      tags: [Admin]
+      summary: Mark a member's profile as verified or unverified
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VerificationDecision"
+      responses:
+        "200":
+          description: Verification status updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionUser"
+        "401":
+          description: Authentication required.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "403":
+          description: Admin access required.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "404":
+          description: Profile not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
 components:
   schemas:
     HealthStatus:
@@ -31,6 +373,237 @@ components:
       properties:
         status:
           type: string
+      required: [status]
+    ErrorEnvelope:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+    RegistrationInput:
+      type: object
+      additionalProperties: false
       required:
-        - status
-
+        - identifier
+        - password
+        - fullName
+        - gender
+        - dateOfBirth
+        - area
+        - bio
+        - photoPaths
+        - acceptsTerms
+        - acceptsPrivacy
+      properties:
+        identifier:
+          type: string
+          minLength: 5
+          maxLength: 254
+          description: Email address or Nigerian phone number.
+        password:
+          type: string
+          minLength: 10
+          maxLength: 128
+        fullName:
+          type: string
+          minLength: 2
+          maxLength: 80
+        gender:
+          type: string
+          enum: [male, female]
+        dateOfBirth:
+          type: string
+          format: date
+        area:
+          type: string
+          minLength: 2
+          maxLength: 80
+        bio:
+          type: string
+          maxLength: 240
+        photoPaths:
+          type: array
+          minItems: 1
+          maxItems: 5
+          items:
+            type: string
+            minLength: 1
+            maxLength: 512
+        acceptsTerms:
+          type: boolean
+          enum: [true]
+        acceptsPrivacy:
+          type: boolean
+          enum: [true]
+    LoginInput:
+      type: object
+      additionalProperties: false
+      required: [identifier, password]
+      properties:
+        identifier:
+          type: string
+          minLength: 3
+          maxLength: 254
+        password:
+          type: string
+          minLength: 1
+          maxLength: 128
+    ProfileUpdate:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        fullName:
+          type: string
+          minLength: 2
+          maxLength: 80
+        gender:
+          type: string
+          enum: [male, female]
+        dateOfBirth:
+          type: string
+          format: date
+        area:
+          type: string
+          minLength: 2
+          maxLength: 80
+        bio:
+          type: string
+          maxLength: 240
+        photoPaths:
+          type: array
+          minItems: 1
+          maxItems: 5
+          items:
+            type: string
+            minLength: 1
+            maxLength: 512
+    VerificationSelfieInput:
+      type: object
+      additionalProperties: false
+      required: [selfiePath]
+      properties:
+        selfiePath:
+          type: string
+          minLength: 1
+          maxLength: 512
+          description: App Storage object path returned by the upload URL endpoint.
+    SessionUser:
+      type: object
+      required:
+        - id
+        - fullName
+        - gender
+        - dateOfBirth
+        - area
+        - bio
+        - photoPaths
+        - isVerified
+        - verificationSelfieSubmitted
+      properties:
+        id:
+          type: string
+          format: uuid
+        fullName:
+          type: string
+        gender:
+          type: string
+          enum: [male, female]
+        dateOfBirth:
+          type: string
+          format: date
+        area:
+          type: string
+        bio:
+          type: string
+        photoPaths:
+          type: array
+          items:
+            type: string
+        isVerified:
+          type: boolean
+        verificationSelfieSubmitted:
+          type: boolean
+    UploadUrlRequest:
+      type: object
+      additionalProperties: false
+      required: [name, size, contentType]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+        size:
+          type: integer
+          minimum: 1
+          maximum: 5242880
+        contentType:
+          type: string
+          enum: [image/jpeg, image/png, image/webp]
+    UploadUrlResponse:
+      type: object
+      required: [uploadURL, objectPath]
+      properties:
+        uploadURL:
+          type: string
+          format: uri
+        objectPath:
+          type: string
+    DiscoveryFeed:
+      type: object
+      required: [profiles]
+      properties:
+        profiles:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiscoveryProfile"
+    DiscoveryProfile:
+      type: object
+      required: [id, fullName, age, gender, area, bio, photoPath, isVerified]
+      properties:
+        id:
+          type: string
+          format: uuid
+        fullName:
+          type: string
+        age:
+          type: integer
+          minimum: 18
+        gender:
+          type: string
+          enum: [male, female]
+        area:
+          type: string
+        bio:
+          type: string
+        photoPath:
+          type: string
+        isVerified:
+          type: boolean
+    SwipeInput:
+      type: object
+      additionalProperties: false
+      required: [action]
+      properties:
+        action:
+          type: string
+          enum: [like, pass]
+    SwipeResult:
+      type: object
+      required: [action, matched]
+      properties:
+        action:
+          type: string
+          enum: [like, pass]
+        matched:
+          type: boolean
+        matchId:
+          type: ["string", "null"]
+          format: uuid
+    VerificationDecision:
+      type: object
+      additionalProperties: false
+      required: [isVerified]
+      properties:
+        isVerified:
+          type: boolean
