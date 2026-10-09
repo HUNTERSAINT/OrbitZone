@@ -26,6 +26,10 @@ tags:
     description: Current plan status and feature access.
   - name: Admin
     description: Restricted account verification review actions.
+  - name: Payments
+    description: Paystack checkout and server-verified plan access.
+  - name: Safety
+    description: Member reports and mutual blocking controls.
 paths:
   /healthz:
     get:
@@ -636,6 +640,386 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorEnvelope"
+  /payments/initialize:
+    post:
+      operationId: initializePayment
+      tags: [Payments]
+      summary: Start a Paystack checkout for a weekly plan
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InitializePaymentInput"
+      responses:
+        "201":
+          description: Pending payment record created for the Paystack inline popup.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentCheckout"
+        "400":
+          description: Invalid plan or billing email.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "401":
+          description: Authentication required.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "403":
+          description: Only men can purchase plans.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "502":
+          description: Paystack could not initialize checkout.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /payments/verify:
+    post:
+      operationId: verifyPayment
+      tags: [Payments]
+      summary: Verify a payment with Paystack before granting plan access
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VerifyPaymentInput"
+      responses:
+        "200":
+          description: Verified payment status and current plan expiry.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentVerification"
+        "400":
+          description: Invalid reference or payment details do not match.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "401":
+          description: Authentication required.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "404":
+          description: Payment reference not found for the current user.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "502":
+          description: Paystack could not verify the transaction.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /reports:
+    post:
+      operationId: submitReport
+      tags: [Safety]
+      summary: Report a member profile or a chat participant
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReportInput"
+      responses:
+        "201":
+          description: Report submitted for admin review.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReportSubmission"
+        "400":
+          description: Invalid report details.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "401":
+          description: Authentication required.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "404":
+          description: Target member or chat not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "429":
+          description: Report rate limit exceeded.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /users/{userId}/block:
+    post:
+      operationId: blockUser
+      tags: [Safety]
+      summary: Block a member from viewing or messaging the current user
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Member blocked.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BlockStatus"
+        "400":
+          description: Invalid member identifier.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "401":
+          description: Authentication required.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "404":
+          description: Member not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+    delete:
+      operationId: unblockUser
+      tags: [Safety]
+      summary: Remove a block created by the current user
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Block removed.
+        "401":
+          description: Authentication required.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /admin/overview:
+    get:
+      operationId: getAdminOverview
+      tags: [Admin]
+      summary: Get member and weekly revenue totals
+      responses:
+        "200":
+          description: Admin dashboard totals.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminOverview"
+        "401":
+          description: Authentication required.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "403":
+          description: Admin access required.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /admin/users:
+    get:
+      operationId: getAdminUsers
+      tags: [Admin]
+      summary: Search member accounts for moderation
+      parameters:
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 100
+      responses:
+        "200":
+          description: Searchable member list.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminUsersResponse"
+        "401":
+          description: Authentication required.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "403":
+          description: Admin access required.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /admin/users/{userId}/status:
+    patch:
+      operationId: updateAdminUserStatus
+      tags: [Admin]
+      summary: Ban or unban a member account
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminUserStatusInput"
+      responses:
+        "200":
+          description: Account status updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminUser"
+        "401":
+          description: Authentication required.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "403":
+          description: Admin access required.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "404":
+          description: Member not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /admin/reports:
+    get:
+      operationId: getAdminReports
+      tags: [Admin]
+      summary: List safety reports
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [open, resolved, all]
+            default: open
+      responses:
+        "200":
+          description: Report queue.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminReportsResponse"
+        "401":
+          description: Authentication required.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "403":
+          description: Admin access required.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /admin/reports/{reportId}:
+    patch:
+      operationId: updateAdminReport
+      tags: [Admin]
+      summary: Resolve or reopen a safety report
+      parameters:
+        - name: reportId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminReportUpdateInput"
+      responses:
+        "200":
+          description: Report updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminReport"
+        "401":
+          description: Authentication required.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "403":
+          description: Admin access required.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "404":
+          description: Report not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /admin/payments:
+    get:
+      operationId: getAdminPayments
+      tags: [Admin]
+      summary: List recent payment transactions
+      responses:
+        "200":
+          description: Recent payments.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminPaymentsResponse"
+        "401":
+          description: Authentication required.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "403":
+          description: Admin access required.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
 components:
   schemas:
     HealthStatus:
@@ -733,9 +1117,6 @@ components:
           type: string
           minLength: 2
           maxLength: 80
-        gender:
-          type: string
-          enum: [male, female]
         dateOfBirth:
           type: string
           format: date
@@ -781,6 +1162,7 @@ components:
         - bio
         - photoPaths
         - isVerified
+         - isAdmin
         - verificationSelfieSubmitted
         - wantsRelationship
         - wantsFriendsWithBenefits
@@ -808,6 +1190,8 @@ components:
           items:
             type: string
         isVerified:
+          type: boolean
+        isAdmin:
           type: boolean
         verificationSelfieSubmitted:
           type: boolean
@@ -1024,3 +1408,243 @@ components:
         hookupDaysRemaining:
           type: integer
           minimum: 0
+    InitializePaymentInput:
+      type: object
+      additionalProperties: false
+      required: [plan, email]
+      properties:
+        plan:
+          type: string
+          enum: [premium, hookup]
+        email:
+          type: string
+          format: email
+          maxLength: 254
+    PaymentCheckout:
+      type: object
+      required: [reference, plan, amountKobo, currency, publicKey]
+      properties:
+        reference:
+          type: string
+        plan:
+          type: string
+          enum: [premium, hookup]
+        amountKobo:
+          type: integer
+        currency:
+          type: string
+          enum: [NGN]
+        publicKey:
+          type: string
+    VerifyPaymentInput:
+      type: object
+      additionalProperties: false
+      required: [reference]
+      properties:
+        reference:
+          type: string
+          minLength: 8
+          maxLength: 100
+          pattern: "^[A-Za-z0-9.=\\-]+$"
+    PaymentVerification:
+      type: object
+      required: [reference, plan, status, premiumUntil, hookupUntil, premiumDaysRemaining, hookupDaysRemaining]
+      properties:
+        reference:
+          type: string
+        plan:
+          type: string
+          enum: [premium, hookup]
+        status:
+          type: string
+          enum: [success, pending, failed]
+        premiumUntil:
+          type: ["string", "null"]
+          format: date-time
+        hookupUntil:
+          type: ["string", "null"]
+          format: date-time
+        premiumDaysRemaining:
+          type: integer
+        hookupDaysRemaining:
+          type: integer
+    ReportInput:
+      type: object
+      additionalProperties: false
+      required: [targetUserId, reason]
+      properties:
+        targetUserId:
+          type: string
+          format: uuid
+        matchId:
+          type: string
+          format: uuid
+        reason:
+          type: string
+          enum: [fake_profile, harassment, scam, underage, other]
+        details:
+          type: string
+          maxLength: 500
+    ReportSubmission:
+      type: object
+      required: [id, status]
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [open]
+    BlockStatus:
+      type: object
+      required: [userId, blocked]
+      properties:
+        userId:
+          type: string
+          format: uuid
+        blocked:
+          type: boolean
+    AdminOverview:
+      type: object
+      required: [totalUsers, maleUsers, femaleUsers, activePremiumUsers, weeklyRevenueKobo]
+      properties:
+        totalUsers:
+          type: integer
+        maleUsers:
+          type: integer
+        femaleUsers:
+          type: integer
+        activePremiumUsers:
+          type: integer
+        weeklyRevenueKobo:
+          type: integer
+    AdminUser:
+      type: object
+      required: [id, identifier, fullName, gender, isAdmin, isBanned, isVerified, verificationSelfieSubmitted, verificationSelfiePath, createdAt, premiumUntil, hookupUntil]
+      properties:
+        id:
+          type: string
+          format: uuid
+        identifier:
+          type: string
+        fullName:
+          type: string
+        gender:
+          type: string
+          enum: [male, female]
+        isAdmin:
+          type: boolean
+        isBanned:
+          type: boolean
+        isVerified:
+          type: boolean
+        verificationSelfieSubmitted:
+          type: boolean
+        verificationSelfiePath:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+        premiumUntil:
+          type: ["string", "null"]
+          format: date-time
+        hookupUntil:
+          type: ["string", "null"]
+          format: date-time
+    AdminUsersResponse:
+      type: object
+      required: [users]
+      properties:
+        users:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdminUser"
+    AdminUserStatusInput:
+      type: object
+      additionalProperties: false
+      required: [isBanned]
+      properties:
+        isBanned:
+          type: boolean
+    AdminReport:
+      type: object
+      required: [id, reporterName, targetName, matchId, reason, details, status, adminNote, createdAt, resolvedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        reporterName:
+          type: ["string", "null"]
+        targetName:
+          type: ["string", "null"]
+        matchId:
+          type: ["string", "null"]
+          format: uuid
+        reason:
+          type: string
+          enum: [fake_profile, harassment, scam, underage, other]
+        details:
+          type: ["string", "null"]
+        status:
+          type: string
+          enum: [open, resolved]
+        adminNote:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+        resolvedAt:
+          type: ["string", "null"]
+          format: date-time
+    AdminReportsResponse:
+      type: object
+      required: [reports]
+      properties:
+        reports:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdminReport"
+    AdminReportUpdateInput:
+      type: object
+      additionalProperties: false
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [open, resolved]
+        adminNote:
+          type: string
+          maxLength: 500
+    AdminPayment:
+      type: object
+      required: [id, reference, userIdentifier, amountKobo, plan, status, createdAt, paidAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        reference:
+          type: string
+        userIdentifier:
+          type: ["string", "null"]
+        amountKobo:
+          type: integer
+        plan:
+          type: string
+          enum: [premium, hookup]
+        status:
+          type: string
+          enum: [pending, success, failed]
+        createdAt:
+          type: string
+          format: date-time
+        paidAt:
+          type: ["string", "null"]
+          format: date-time
+    AdminPaymentsResponse:
+      type: object
+      required: [payments]
+      properties:
+        payments:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdminPayment"

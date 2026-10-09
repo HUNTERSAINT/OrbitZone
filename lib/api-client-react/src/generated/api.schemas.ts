@@ -74,21 +74,12 @@ export interface LoginInput {
   password: string;
 }
 
-export type ProfileUpdateGender = typeof ProfileUpdateGender[keyof typeof ProfileUpdateGender];
-
-
-export const ProfileUpdateGender = {
-  male: 'male',
-  female: 'female',
-} as const;
-
 export interface ProfileUpdate {
   /**
      * @minLength 2
      * @maxLength 80
      */
   fullName?: string;
-  gender?: ProfileUpdateGender;
   dateOfBirth?: string;
   /**
      * @minLength 2
@@ -134,7 +125,8 @@ export interface SessionUser {
   area: string;
   bio: string;
   photoPaths: string[];
-  isVerified: boolean;
+  isVerified?: boolean;
+  isAdmin?: boolean;
   verificationSelfieSubmitted: boolean;
   wantsRelationship: boolean;
   wantsFriendsWithBenefits: boolean;
@@ -311,6 +303,249 @@ export interface PlanStatus {
   hookupDaysRemaining: number;
 }
 
+export type InitializePaymentInputPlan = typeof InitializePaymentInputPlan[keyof typeof InitializePaymentInputPlan];
+
+
+export const InitializePaymentInputPlan = {
+  premium: 'premium',
+  hookup: 'hookup',
+} as const;
+
+export interface InitializePaymentInput {
+  plan: InitializePaymentInputPlan;
+  /** @maxLength 254 */
+  email: string;
+}
+
+export type PaymentCheckoutPlan = typeof PaymentCheckoutPlan[keyof typeof PaymentCheckoutPlan];
+
+
+export const PaymentCheckoutPlan = {
+  premium: 'premium',
+  hookup: 'hookup',
+} as const;
+
+export type PaymentCheckoutCurrency = typeof PaymentCheckoutCurrency[keyof typeof PaymentCheckoutCurrency];
+
+
+export const PaymentCheckoutCurrency = {
+  NGN: 'NGN',
+} as const;
+
+export interface PaymentCheckout {
+  reference: string;
+  plan: PaymentCheckoutPlan;
+  amountKobo: number;
+  currency: PaymentCheckoutCurrency;
+  authorizationUrl: string;
+}
+
+export interface VerifyPaymentInput {
+  /**
+     * @minLength 8
+     * @maxLength 100
+     * @pattern ^[A-Za-z0-9.=\-]+$
+     */
+  reference: string;
+}
+
+export type PaymentVerificationPlan = typeof PaymentVerificationPlan[keyof typeof PaymentVerificationPlan];
+
+
+export const PaymentVerificationPlan = {
+  premium: 'premium',
+  hookup: 'hookup',
+} as const;
+
+export type PaymentVerificationStatus = typeof PaymentVerificationStatus[keyof typeof PaymentVerificationStatus];
+
+
+export const PaymentVerificationStatus = {
+  success: 'success',
+  pending: 'pending',
+  failed: 'failed',
+} as const;
+
+export interface PaymentVerification {
+  reference: string;
+  plan: PaymentVerificationPlan;
+  status: PaymentVerificationStatus;
+  /** @nullable */
+  premiumUntil: string | null;
+  /** @nullable */
+  hookupUntil: string | null;
+  premiumDaysRemaining: number;
+  hookupDaysRemaining: number;
+}
+
+export type ReportInputReason = typeof ReportInputReason[keyof typeof ReportInputReason];
+
+
+export const ReportInputReason = {
+  fake_profile: 'fake_profile',
+  harassment: 'harassment',
+  scam: 'scam',
+  underage: 'underage',
+  other: 'other',
+} as const;
+
+export interface ReportInput {
+  targetUserId: string;
+  matchId?: string;
+  reason: ReportInputReason;
+  /** @maxLength 500 */
+  details?: string;
+}
+
+export type ReportSubmissionStatus = typeof ReportSubmissionStatus[keyof typeof ReportSubmissionStatus];
+
+
+export const ReportSubmissionStatus = {
+  open: 'open',
+} as const;
+
+export interface ReportSubmission {
+  id: string;
+  status: ReportSubmissionStatus;
+}
+
+export interface BlockStatus {
+  userId: string;
+  blocked: boolean;
+}
+
+export interface AdminOverview {
+  totalUsers: number;
+  maleUsers: number;
+  femaleUsers: number;
+  activePremiumUsers: number;
+  weeklyRevenueKobo: number;
+}
+
+export type AdminUserGender = typeof AdminUserGender[keyof typeof AdminUserGender];
+
+
+export const AdminUserGender = {
+  male: 'male',
+  female: 'female',
+} as const;
+
+export interface AdminUser {
+  id: string;
+  identifier: string;
+  fullName: string;
+  gender: AdminUserGender;
+  isAdmin: boolean;
+  isBanned: boolean;
+  isVerified: boolean;
+  verificationSelfieSubmitted: boolean;
+  /** @nullable */
+  verificationSelfiePath: string | null;
+  createdAt: string;
+  /** @nullable */
+  premiumUntil: string | null;
+  /** @nullable */
+  hookupUntil: string | null;
+}
+
+export interface AdminUsersResponse {
+  users: AdminUser[];
+}
+
+export interface AdminUserStatusInput {
+  isBanned: boolean;
+}
+
+export type AdminReportReason = typeof AdminReportReason[keyof typeof AdminReportReason];
+
+
+export const AdminReportReason = {
+  fake_profile: 'fake_profile',
+  harassment: 'harassment',
+  scam: 'scam',
+  underage: 'underage',
+  other: 'other',
+} as const;
+
+export type AdminReportStatus = typeof AdminReportStatus[keyof typeof AdminReportStatus];
+
+
+export const AdminReportStatus = {
+  open: 'open',
+  resolved: 'resolved',
+} as const;
+
+export interface AdminReport {
+  id: string;
+  /** @nullable */
+  reporterName: string | null;
+  /** @nullable */
+  targetName: string | null;
+  /** @nullable */
+  matchId: string | null;
+  reason: AdminReportReason;
+  /** @nullable */
+  details: string | null;
+  status: AdminReportStatus;
+  /** @nullable */
+  adminNote: string | null;
+  createdAt: string;
+  /** @nullable */
+  resolvedAt: string | null;
+}
+
+export interface AdminReportsResponse {
+  reports: AdminReport[];
+}
+
+export type AdminReportUpdateInputStatus = typeof AdminReportUpdateInputStatus[keyof typeof AdminReportUpdateInputStatus];
+
+
+export const AdminReportUpdateInputStatus = {
+  open: 'open',
+  resolved: 'resolved',
+} as const;
+
+export interface AdminReportUpdateInput {
+  status: AdminReportUpdateInputStatus;
+  /** @maxLength 500 */
+  adminNote?: string;
+}
+
+export type AdminPaymentPlan = typeof AdminPaymentPlan[keyof typeof AdminPaymentPlan];
+
+
+export const AdminPaymentPlan = {
+  premium: 'premium',
+  hookup: 'hookup',
+} as const;
+
+export type AdminPaymentStatus = typeof AdminPaymentStatus[keyof typeof AdminPaymentStatus];
+
+
+export const AdminPaymentStatus = {
+  pending: 'pending',
+  success: 'success',
+  failed: 'failed',
+} as const;
+
+export interface AdminPayment {
+  id: string;
+  reference: string;
+  /** @nullable */
+  userIdentifier: string | null;
+  amountKobo: number;
+  plan: AdminPaymentPlan;
+  status: AdminPaymentStatus;
+  createdAt: string;
+  /** @nullable */
+  paidAt: string | null;
+}
+
+export interface AdminPaymentsResponse {
+  payments: AdminPayment[];
+}
+
 export type SearchProfilesParams = {
 category: SearchProfilesCategory;
 /**
@@ -336,5 +571,25 @@ export const SearchProfilesCategory = {
   relationship: 'relationship',
   'friends-with-benefits': 'friends-with-benefits',
   hookup: 'hookup',
+} as const;
+
+export type GetAdminUsersParams = {
+/**
+ * @maxLength 100
+ */
+search?: string;
+};
+
+export type GetAdminReportsParams = {
+status?: GetAdminReportsStatus;
+};
+
+export type GetAdminReportsStatus = typeof GetAdminReportsStatus[keyof typeof GetAdminReportsStatus];
+
+
+export const GetAdminReportsStatus = {
+  open: 'open',
+  resolved: 'resolved',
+  all: 'all',
 } as const;
 

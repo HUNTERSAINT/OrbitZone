@@ -5,7 +5,6 @@
  * Orbit Zone authentication, adult profiles, verification, discovery, and photo upload API.
  * OpenAPI spec version: 0.2.0
  */
-import type { ProfileUpdateGender } from './profileUpdateGender';
 
 export interface ProfileUpdate {
   /**
@@ -13,7 +12,6 @@ export interface ProfileUpdate {
      * @maxLength 80
      */
   fullName?: string;
-  gender?: ProfileUpdateGender;
   dateOfBirth?: Date;
   /**
      * @minLength 2

@@ -75,7 +75,6 @@ router.patch("/profiles/me", requireUser, async (req, res): Promise<void> => {
 
   const patch: Partial<typeof usersTable.$inferInsert> = {};
   if (input.fullName !== undefined) patch.fullName = input.fullName.trim();
-  if (input.gender !== undefined) patch.gender = input.gender;
   if (input.dateOfBirth !== undefined) {
     patch.dateOfBirth = input.dateOfBirth.toISOString().slice(0, 10);
   }

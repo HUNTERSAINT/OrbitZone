@@ -6,10 +6,9 @@
  * OpenAPI spec version: 0.2.0
  */
 
-export type ProfileUpdateGender = typeof ProfileUpdateGender[keyof typeof ProfileUpdateGender];
+export type PaymentCheckoutCurrency = typeof PaymentCheckoutCurrency[keyof typeof PaymentCheckoutCurrency];
 
 
-export const ProfileUpdateGender = {
-  male: 'male',
-  female: 'female',
+export const PaymentCheckoutCurrency = {
+  NGN: 'NGN',
 } as const;

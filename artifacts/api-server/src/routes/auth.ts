@@ -72,6 +72,7 @@ export function toSessionUser(user: typeof usersTable.$inferSelect) {
     bio: user.bio,
     photoPaths: user.photoPaths,
     isVerified: user.isVerified,
+    isAdmin: user.isAdmin,
     verificationSelfieSubmitted: Boolean(user.verificationSelfiePath),
     wantsRelationship: user.wantsRelationship,
     wantsFriendsWithBenefits: user.wantsFriendsWithBenefits,

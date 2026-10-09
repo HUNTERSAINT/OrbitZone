@@ -22,3 +22,5 @@ export * from "./swipes";
 export * from "./matches";
 export * from "./blocked-users";
 export * from "./messages";
+export * from "./payments";
+export * from "./reports";

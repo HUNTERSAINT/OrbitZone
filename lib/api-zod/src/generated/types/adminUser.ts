@@ -5,22 +5,20 @@
  * Orbit Zone authentication, adult profiles, verification, discovery, and photo upload API.
  * OpenAPI spec version: 0.2.0
  */
-import type { SessionUserGender } from './sessionUserGender';
+import type { AdminUserGender } from './adminUserGender';
 
-export interface SessionUser {
+export interface AdminUser {
   id: string;
+  identifier: string;
   fullName: string;
-  gender: SessionUserGender;
-  dateOfBirth: Date;
-  area: string;
-  bio: string;
-  photoPaths: string[];
-  isVerified?: boolean;
-  isAdmin?: boolean;
+  gender: AdminUserGender;
+  isAdmin: boolean;
+  isBanned: boolean;
+  isVerified: boolean;
   verificationSelfieSubmitted: boolean;
-  wantsRelationship: boolean;
-  wantsFriendsWithBenefits: boolean;
-  wantsHookup: boolean;
+  /** @nullable */
+  verificationSelfiePath: string | null;
+  createdAt: Date;
   /** @nullable */
   premiumUntil: Date | null;
   /** @nullable */

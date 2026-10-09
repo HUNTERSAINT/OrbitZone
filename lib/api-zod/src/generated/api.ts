@@ -65,7 +65,8 @@ export const RegisterAccountResponse = zod.object({
   "area": zod.string(),
   "bio": zod.string(),
   "photoPaths": zod.array(zod.string()),
-  "isVerified": zod.boolean(),
+  "isVerified": zod.boolean().optional(),
+  "isAdmin": zod.boolean().optional(),
   "verificationSelfieSubmitted": zod.boolean(),
   "wantsRelationship": zod.boolean(),
   "wantsFriendsWithBenefits": zod.boolean(),
@@ -98,7 +99,8 @@ export const LoginAccountResponse = zod.object({
   "area": zod.string(),
   "bio": zod.string(),
   "photoPaths": zod.array(zod.string()),
-  "isVerified": zod.boolean(),
+  "isVerified": zod.boolean().optional(),
+  "isAdmin": zod.boolean().optional(),
   "verificationSelfieSubmitted": zod.boolean(),
   "wantsRelationship": zod.boolean(),
   "wantsFriendsWithBenefits": zod.boolean(),
@@ -125,7 +127,8 @@ export const GetCurrentUserResponse = zod.object({
   "area": zod.string(),
   "bio": zod.string(),
   "photoPaths": zod.array(zod.string()),
-  "isVerified": zod.boolean(),
+  "isVerified": zod.boolean().optional(),
+  "isAdmin": zod.boolean().optional(),
   "verificationSelfieSubmitted": zod.boolean(),
   "wantsRelationship": zod.boolean(),
   "wantsFriendsWithBenefits": zod.boolean(),
@@ -146,7 +149,8 @@ export const GetMyProfileResponse = zod.object({
   "area": zod.string(),
   "bio": zod.string(),
   "photoPaths": zod.array(zod.string()),
-  "isVerified": zod.boolean(),
+  "isVerified": zod.boolean().optional(),
+  "isAdmin": zod.boolean().optional(),
   "verificationSelfieSubmitted": zod.boolean(),
   "wantsRelationship": zod.boolean(),
   "wantsFriendsWithBenefits": zod.boolean(),
@@ -175,7 +179,6 @@ export const updateMyProfileBodyPhotoPathsMax = 5;
 
 export const UpdateMyProfileBody = zod.object({
   "fullName": zod.string().min(updateMyProfileBodyFullNameMin).max(updateMyProfileBodyFullNameMax).optional(),
-  "gender": zod.enum(['male', 'female']).optional(),
   "dateOfBirth": zod.coerce.date().optional(),
   "area": zod.string().min(updateMyProfileBodyAreaMin).max(updateMyProfileBodyAreaMax).optional(),
   "bio": zod.string().max(updateMyProfileBodyBioMax).optional(),
@@ -193,7 +196,8 @@ export const UpdateMyProfileResponse = zod.object({
   "area": zod.string(),
   "bio": zod.string(),
   "photoPaths": zod.array(zod.string()),
-  "isVerified": zod.boolean(),
+  "isVerified": zod.boolean().optional(),
+  "isAdmin": zod.boolean().optional(),
   "verificationSelfieSubmitted": zod.boolean(),
   "wantsRelationship": zod.boolean(),
   "wantsFriendsWithBenefits": zod.boolean(),
@@ -222,7 +226,8 @@ export const SubmitVerificationSelfieResponse = zod.object({
   "area": zod.string(),
   "bio": zod.string(),
   "photoPaths": zod.array(zod.string()),
-  "isVerified": zod.boolean(),
+  "isVerified": zod.boolean().optional(),
+  "isAdmin": zod.boolean().optional(),
   "verificationSelfieSubmitted": zod.boolean(),
   "wantsRelationship": zod.boolean(),
   "wantsFriendsWithBenefits": zod.boolean(),
@@ -486,13 +491,243 @@ export const ReviewUserVerificationResponse = zod.object({
   "area": zod.string(),
   "bio": zod.string(),
   "photoPaths": zod.array(zod.string()),
-  "isVerified": zod.boolean(),
+  "isVerified": zod.boolean().optional(),
+  "isAdmin": zod.boolean().optional(),
   "verificationSelfieSubmitted": zod.boolean(),
   "wantsRelationship": zod.boolean(),
   "wantsFriendsWithBenefits": zod.boolean(),
   "wantsHookup": zod.boolean(),
   "premiumUntil": zod.coerce.date().nullable(),
   "hookupUntil": zod.coerce.date().nullable()
+})
+
+
+/**
+ * @summary Start a Paystack checkout for a weekly plan
+ */
+export const initializePaymentBodyEmailMax = 254;
+
+
+
+export const InitializePaymentBody = zod.object({
+  "plan": zod.enum(['premium', 'hookup']),
+  "email": zod.string().email().max(initializePaymentBodyEmailMax)
+})
+
+export const InitializePaymentResponse = zod.object({
+  "reference": zod.string(),
+  "plan": zod.enum(['premium', 'hookup']),
+  "amountKobo": zod.number().int(),
+  "currency": zod.enum(['NGN']),
+  "authorizationUrl": zod.string().url()
+})
+
+
+/**
+ * @summary Verify a payment with Paystack before granting plan access
+ */
+export const verifyPaymentBodyReferenceMin = 8;
+export const verifyPaymentBodyReferenceMax = 100;
+
+
+export const verifyPaymentBodyReferenceRegExp = new RegExp('^[A-Za-z0-9.=\\-]+$');
+
+
+export const VerifyPaymentBody = zod.object({
+  "reference": zod.string().min(verifyPaymentBodyReferenceMin).max(verifyPaymentBodyReferenceMax).regex(verifyPaymentBodyReferenceRegExp)
+})
+
+export const VerifyPaymentResponse = zod.object({
+  "reference": zod.string(),
+  "plan": zod.enum(['premium', 'hookup']),
+  "status": zod.enum(['success', 'pending', 'failed']),
+  "premiumUntil": zod.coerce.date().nullable(),
+  "hookupUntil": zod.coerce.date().nullable(),
+  "premiumDaysRemaining": zod.number().int(),
+  "hookupDaysRemaining": zod.number().int()
+})
+
+
+/**
+ * @summary Report a member profile or a chat participant
+ */
+export const submitReportBodyDetailsMax = 500;
+
+
+
+export const SubmitReportBody = zod.object({
+  "targetUserId": zod.string().uuid(),
+  "matchId": zod.string().uuid().optional(),
+  "reason": zod.enum(['fake_profile', 'harassment', 'scam', 'underage', 'other']),
+  "details": zod.string().max(submitReportBodyDetailsMax).optional()
+})
+
+export const SubmitReportResponse = zod.object({
+  "id": zod.string().uuid(),
+  "status": zod.enum(['open'])
+})
+
+
+/**
+ * @summary Block a member from viewing or messaging the current user
+ */
+export const BlockUserParams = zod.object({
+  "userId": zod.coerce.string().uuid()
+})
+
+export const BlockUserResponse = zod.object({
+  "userId": zod.string().uuid(),
+  "blocked": zod.boolean()
+})
+
+
+/**
+ * @summary Remove a block created by the current user
+ */
+export const UnblockUserParams = zod.object({
+  "userId": zod.coerce.string().uuid()
+})
+
+export const UnblockUserResponse = zod.void()
+
+
+/**
+ * @summary Get member and weekly revenue totals
+ */
+export const GetAdminOverviewResponse = zod.object({
+  "totalUsers": zod.number().int(),
+  "maleUsers": zod.number().int(),
+  "femaleUsers": zod.number().int(),
+  "activePremiumUsers": zod.number().int(),
+  "weeklyRevenueKobo": zod.number().int()
+})
+
+
+/**
+ * @summary Search member accounts for moderation
+ */
+export const getAdminUsersQuerySearchMax = 100;
+
+
+
+export const GetAdminUsersQueryParams = zod.object({
+  "search": zod.coerce.string().max(getAdminUsersQuerySearchMax).optional()
+})
+
+export const GetAdminUsersResponse = zod.object({
+  "users": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "identifier": zod.string(),
+  "fullName": zod.string(),
+  "gender": zod.enum(['male', 'female']),
+  "isAdmin": zod.boolean(),
+  "isBanned": zod.boolean(),
+  "isVerified": zod.boolean(),
+  "verificationSelfieSubmitted": zod.boolean(),
+  "verificationSelfiePath": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "premiumUntil": zod.coerce.date().nullable(),
+  "hookupUntil": zod.coerce.date().nullable()
+}))
+})
+
+
+/**
+ * @summary Ban or unban a member account
+ */
+export const UpdateAdminUserStatusParams = zod.object({
+  "userId": zod.coerce.string().uuid()
+})
+
+export const UpdateAdminUserStatusBody = zod.object({
+  "isBanned": zod.boolean()
+})
+
+export const UpdateAdminUserStatusResponse = zod.object({
+  "id": zod.string().uuid(),
+  "identifier": zod.string(),
+  "fullName": zod.string(),
+  "gender": zod.enum(['male', 'female']),
+  "isAdmin": zod.boolean(),
+  "isBanned": zod.boolean(),
+  "isVerified": zod.boolean(),
+  "verificationSelfieSubmitted": zod.boolean(),
+  "verificationSelfiePath": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "premiumUntil": zod.coerce.date().nullable(),
+  "hookupUntil": zod.coerce.date().nullable()
+})
+
+
+/**
+ * @summary List safety reports
+ */
+export const getAdminReportsQueryStatusDefault = `open`;
+
+export const GetAdminReportsQueryParams = zod.object({
+  "status": zod.enum(['open', 'resolved', 'all']).default(getAdminReportsQueryStatusDefault)
+})
+
+export const GetAdminReportsResponse = zod.object({
+  "reports": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "reporterName": zod.string().nullable(),
+  "targetName": zod.string().nullable(),
+  "matchId": zod.string().uuid().nullable(),
+  "reason": zod.enum(['fake_profile', 'harassment', 'scam', 'underage', 'other']),
+  "details": zod.string().nullable(),
+  "status": zod.enum(['open', 'resolved']),
+  "adminNote": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "resolvedAt": zod.coerce.date().nullable()
+}))
+})
+
+
+/**
+ * @summary Resolve or reopen a safety report
+ */
+export const UpdateAdminReportParams = zod.object({
+  "reportId": zod.coerce.string().uuid()
+})
+
+export const updateAdminReportBodyAdminNoteMax = 500;
+
+
+
+export const UpdateAdminReportBody = zod.object({
+  "status": zod.enum(['open', 'resolved']),
+  "adminNote": zod.string().max(updateAdminReportBodyAdminNoteMax).optional()
+})
+
+export const UpdateAdminReportResponse = zod.object({
+  "id": zod.string().uuid(),
+  "reporterName": zod.string().nullable(),
+  "targetName": zod.string().nullable(),
+  "matchId": zod.string().uuid().nullable(),
+  "reason": zod.enum(['fake_profile', 'harassment', 'scam', 'underage', 'other']),
+  "details": zod.string().nullable(),
+  "status": zod.enum(['open', 'resolved']),
+  "adminNote": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "resolvedAt": zod.coerce.date().nullable()
+})
+
+
+/**
+ * @summary List recent payment transactions
+ */
+export const GetAdminPaymentsResponse = zod.object({
+  "payments": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "reference": zod.string(),
+  "userIdentifier": zod.string().nullable(),
+  "amountKobo": zod.number().int(),
+  "plan": zod.enum(['premium', 'hookup']),
+  "status": zod.enum(['pending', 'success', 'failed']),
+  "createdAt": zod.coerce.date(),
+  "paidAt": zod.coerce.date().nullable()
+}))
 })
 
 

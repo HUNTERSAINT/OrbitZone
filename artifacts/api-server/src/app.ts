@@ -33,7 +33,13 @@ app.use(
     },
   }),
 );
-app.use(express.json());
+app.use(
+  express.json({
+    verify: (req, _res, buffer) => {
+      req.rawBody = Buffer.from(buffer);
+    },
+  }),
+);
 app.use(express.urlencoded({ extended: true }));
 
 const PgSessionStore = connectPgSimple(session);
