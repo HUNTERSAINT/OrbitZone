@@ -37,3 +37,27 @@ export const requireAdmin: RequestHandler = (req, res, next) => {
   }
   next();
 };
+
+export const requirePremiumForMen: RequestHandler = (req, res, next) => {
+  const user = req.currentUser!;
+  if (
+    user.gender === "male" &&
+    (!user.premiumUntil || user.premiumUntil.getTime() <= Date.now())
+  ) {
+    res.status(403).json({ error: "upgrade required" });
+    return;
+  }
+  next();
+};
+
+export const requireHookupForMen: RequestHandler = (req, res, next) => {
+  const user = req.currentUser!;
+  if (
+    user.gender === "male" &&
+    (!user.hookupUntil || user.hookupUntil.getTime() <= Date.now())
+  ) {
+    res.status(403).json({ error: "upgrade required" });
+    return;
+  }
+  next();
+};

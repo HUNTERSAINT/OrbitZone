@@ -19,6 +19,11 @@ export const matchesTable = pgTable(
     userTwoId: uuid("user_two_id")
       .notNull()
       .references(() => usersTable.id, { onDelete: "cascade" }),
+    userOneLastReadAt: timestamp("user_one_last_read_at", { withTimezone: true }),
+    userTwoLastReadAt: timestamp("user_two_last_read_at", { withTimezone: true }),
+    lastMessageAt: timestamp("last_message_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [

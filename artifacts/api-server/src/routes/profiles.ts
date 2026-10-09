@@ -43,6 +43,15 @@ router.patch("/profiles/me", requireUser, async (req, res): Promise<void> => {
   }
 
   const input = parsed.data;
+  if (
+    req.currentUser!.gender !== "female" &&
+    (input.wantsRelationship !== undefined ||
+      input.wantsFriendsWithBenefits !== undefined ||
+      input.wantsHookup !== undefined)
+  ) {
+    res.status(400).json({ error: "Search preferences are available for women only." });
+    return;
+  }
   if (input.dateOfBirth && !isAdult(input.dateOfBirth)) {
     res.status(400).json({ error: "Orbit Zone is only for people aged 18 or older." });
     return;
@@ -73,6 +82,13 @@ router.patch("/profiles/me", requireUser, async (req, res): Promise<void> => {
   if (input.area !== undefined) patch.area = input.area.trim();
   if (input.bio !== undefined) patch.bio = input.bio.trim();
   if (input.photoPaths !== undefined) patch.photoPaths = input.photoPaths;
+  if (input.wantsRelationship !== undefined) {
+    patch.wantsRelationship = input.wantsRelationship;
+  }
+  if (input.wantsFriendsWithBenefits !== undefined) {
+    patch.wantsFriendsWithBenefits = input.wantsFriendsWithBenefits;
+  }
+  if (input.wantsHookup !== undefined) patch.wantsHookup = input.wantsHookup;
 
   if (Object.keys(patch).length === 0) {
     res.status(400).json({ error: "Provide at least one profile field to update." });
@@ -137,7 +153,7 @@ router.delete("/account", requireUser, async (req, res): Promise<void> => {
     req.session.destroy((error) => (error ? reject(error) : resolve()));
   });
   await db.delete(usersTable).where(eq(usersTable.id, user.id));
-  res.clearCookie("confluence.sid", { path: "/api" });
+  res.clearCookie("orbitzone.sid", { path: "/" });
 
   await Promise.all(
     objectPaths.map(async (path) => {

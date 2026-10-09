@@ -18,6 +18,12 @@ tags:
     description: Secure profile photo and verification selfie uploads.
   - name: Discovery
     description: Swipe feed and persistent like/pass decisions.
+  - name: Matches
+    description: Mutual matches and private conversations.
+  - name: Search
+    description: Preference-based search for men with the required active plan.
+  - name: Plans
+    description: Current plan status and feature access.
   - name: Admin
     description: Restricted account verification review actions.
 paths:
@@ -323,6 +329,270 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorEnvelope"
+  /profiles/{profileId}:
+    get:
+      operationId: getFullProfile
+      tags: [Profiles]
+      summary: View a full profile
+      description: Men need active Premium. Women can view profiles for free.
+      parameters:
+        - name: profileId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Full member profile.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FullProfile"
+        "401":
+          description: Authentication required.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "403":
+          description: Premium access required.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "404":
+          description: Profile is unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /matches:
+    get:
+      operationId: getMatches
+      tags: [Matches]
+      summary: List the current user's matches
+      description: Men need active Premium. Women can use matching for free.
+      responses:
+        "200":
+          description: Matches ordered by recent activity.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MatchesResponse"
+        "401":
+          description: Authentication required.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "403":
+          description: Premium access required.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /matches/{matchId}/messages:
+    get:
+      operationId: getMatchMessages
+      tags: [Matches]
+      summary: Get message history for a match
+      parameters:
+        - name: matchId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Conversation message history.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessagesResponse"
+        "401":
+          description: Authentication required.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "403":
+          description: Premium access required for men.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "404":
+          description: Match not found or unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+    post:
+      operationId: sendMatchMessage
+      tags: [Matches]
+      summary: Send a message to a match
+      description: Saves the message and emits it to the other matched user in real time.
+      parameters:
+        - name: matchId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MessageInput"
+      responses:
+        "201":
+          description: Message saved and delivered.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Message"
+        "400":
+          description: Invalid message.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "401":
+          description: Authentication required.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "403":
+          description: Premium access required for men.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "404":
+          description: Match not found or unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "429":
+          description: Message rate limit exceeded.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /matches/{matchId}/read:
+    post:
+      operationId: markMatchRead
+      tags: [Matches]
+      summary: Mark a match conversation as read
+      parameters:
+        - name: matchId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Conversation marked as read.
+        "401":
+          description: Authentication required.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "403":
+          description: Premium access required for men.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "404":
+          description: Match not found or unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /search:
+    get:
+      operationId: searchProfiles
+      tags: [Search]
+      summary: Search profiles by relationship preference
+      description: Men need active Premium for Relationship and Friends with Benefits; Hookup also requires its separate active add-on. Every result opted into its category.
+      parameters:
+        - name: category
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [relationship, friends-with-benefits, hookup]
+        - name: minAge
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 18
+            maximum: 100
+        - name: maxAge
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 18
+            maximum: 100
+        - name: area
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 80
+      responses:
+        "200":
+          description: Category-matched profiles.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SearchResponse"
+        "400":
+          description: Invalid search filters.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "401":
+          description: Authentication required.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "403":
+          description: Premium or Hookup add-on access required.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /plan:
+    get:
+      operationId: getMyPlan
+      tags: [Plans]
+      summary: Get current feature access and expiry dates
+      responses:
+        "200":
+          description: Current plan state.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlanStatus"
+        "401":
+          description: Authentication required.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
   /admin/users/{userId}/verification:
     patch:
       operationId: reviewUserVerification
@@ -421,6 +691,12 @@ components:
         bio:
           type: string
           maxLength: 240
+        wantsRelationship:
+          type: boolean
+        wantsFriendsWithBenefits:
+          type: boolean
+        wantsHookup:
+          type: boolean
         photoPaths:
           type: array
           minItems: 1
@@ -470,6 +746,12 @@ components:
         bio:
           type: string
           maxLength: 240
+        wantsRelationship:
+          type: boolean
+        wantsFriendsWithBenefits:
+          type: boolean
+        wantsHookup:
+          type: boolean
         photoPaths:
           type: array
           minItems: 1
@@ -500,6 +782,11 @@ components:
         - photoPaths
         - isVerified
         - verificationSelfieSubmitted
+        - wantsRelationship
+        - wantsFriendsWithBenefits
+        - wantsHookup
+        - premiumUntil
+        - hookupUntil
       properties:
         id:
           type: string
@@ -524,6 +811,18 @@ components:
           type: boolean
         verificationSelfieSubmitted:
           type: boolean
+        wantsRelationship:
+          type: boolean
+        wantsFriendsWithBenefits:
+          type: boolean
+        wantsHookup:
+          type: boolean
+        premiumUntil:
+          type: ["string", "null"]
+          format: date-time
+        hookupUntil:
+          type: ["string", "null"]
+          format: date-time
     UploadUrlRequest:
       type: object
       additionalProperties: false
@@ -607,3 +906,121 @@ components:
       properties:
         isVerified:
           type: boolean
+    FullProfile:
+      type: object
+      required: [id, fullName, age, gender, area, bio, photoPaths, isVerified]
+      properties:
+        id:
+          type: string
+          format: uuid
+        fullName:
+          type: string
+        age:
+          type: integer
+          minimum: 18
+        gender:
+          type: string
+          enum: [male, female]
+        area:
+          type: string
+        bio:
+          type: string
+        photoPaths:
+          type: array
+          items:
+            type: string
+        isVerified:
+          type: boolean
+    MatchSummary:
+      type: object
+      required: [id, profile, unreadCount]
+      properties:
+        id:
+          type: string
+          format: uuid
+        profile:
+          $ref: "#/components/schemas/DiscoveryProfile"
+        lastMessage:
+          type: ["string", "null"]
+        lastMessageAt:
+          type: ["string", "null"]
+          format: date-time
+        unreadCount:
+          type: integer
+          minimum: 0
+    MatchesResponse:
+      type: object
+      required: [matches]
+      properties:
+        matches:
+          type: array
+          items:
+            $ref: "#/components/schemas/MatchSummary"
+    Message:
+      type: object
+      required: [id, matchId, senderId, body, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        matchId:
+          type: string
+          format: uuid
+        senderId:
+          type: string
+          format: uuid
+        body:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+    MessageInput:
+      type: object
+      additionalProperties: false
+      required: [body]
+      properties:
+        body:
+          type: string
+          minLength: 1
+          maxLength: 2000
+    MessagesResponse:
+      type: object
+      required: [messages]
+      properties:
+        messages:
+          type: array
+          items:
+            $ref: "#/components/schemas/Message"
+    SearchResponse:
+      type: object
+      required: [category, profiles]
+      properties:
+        category:
+          type: string
+          enum: [relationship, friends-with-benefits, hookup]
+        profiles:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiscoveryProfile"
+    PlanStatus:
+      type: object
+      required: [isWoman, premiumActive, hookupActive, premiumUntil, hookupUntil, premiumDaysRemaining, hookupDaysRemaining]
+      properties:
+        isWoman:
+          type: boolean
+        premiumActive:
+          type: boolean
+        hookupActive:
+          type: boolean
+        premiumUntil:
+          type: ["string", "null"]
+          format: date-time
+        hookupUntil:
+          type: ["string", "null"]
+          format: date-time
+        premiumDaysRemaining:
+          type: integer
+          minimum: 0
+        hookupDaysRemaining:
+          type: integer
+          minimum: 0

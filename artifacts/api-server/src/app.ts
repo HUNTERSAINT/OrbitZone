@@ -37,9 +37,8 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 const PgSessionStore = connectPgSimple(session);
-app.use(
-  session({
-    name: "confluence.sid",
+export const sessionMiddleware = session({
+    name: "orbitzone.sid",
     store: new PgSessionStore({
       pool,
       tableName: "user_sessions",
@@ -53,11 +52,11 @@ app.use(
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
-      path: "/api",
+      path: "/",
       maxAge: 7 * 24 * 60 * 60 * 1000,
     },
-  }),
-);
+  });
+app.use(sessionMiddleware);
 
 app.use("/api", router);
 

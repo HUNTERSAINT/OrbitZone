@@ -18,6 +18,7 @@ import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import NotFound from '@/pages/not-found';
 import DiscoverPage from '@/pages/discover';
+import { ChatPage, FullProfilePage, MatchesPage, PlanPage, SearchPage } from '@/pages/community';
 import './index.css';
 
 const queryClient = new QueryClient();
@@ -57,16 +58,26 @@ function Field({ label, children, hint }: { label: string; children: ReactNode; 
 
 function AppShell({ children }: { children: ReactNode }) {
   const [location] = useLocation();
+  const session = useGetCurrentUser({ query: { queryKey: getGetCurrentUserQueryKey(), retry: false }, request: { credentials: 'include' } });
+  const policyOrAuth = ['/', '/login', '/register', '/terms', '/privacy'].includes(location);
+  const showSignedInNav = !!session.data && !policyOrAuth;
   return <div className="app-shell">
-    <header className="topbar"><div className="topbar-inner"><Link href="/" className="brand-link" data-testid="link-home"><Brand /></Link><nav className="topbar-nav" aria-label="Main navigation"><Link href="/discover" className={location === '/discover' ? 'discover-nav-active' : ''} data-testid="link-discover">Discover</Link><Link href="/profile" data-testid="link-profile">Profile</Link><Link href="/contact" data-testid="link-contact">Contact</Link><div className="topbar-loc"><MapPin size={14} /> Lokoja, Kogi</div></nav></div></header>
+    <header className="topbar"><div className="topbar-inner"><Link href="/" className="brand-link" data-testid="link-home"><Brand /></Link>{showSignedInNav && <nav className="topbar-nav" aria-label="Main navigation"><Link href="/discover" className={location === '/discover' ? 'discover-nav-active' : ''} data-testid="link-discover">Discover</Link>{session.data?.gender === 'male' && <Link href="/search" data-testid="link-search">Search</Link>}<Link href="/matches" data-testid="link-matches">Matches</Link><Link href="/profile" data-testid="link-profile">Profile</Link><Link href="/plan" data-testid="link-plan">Plan</Link><div className="topbar-loc"><MapPin size={14} /> Lokoja, Kogi</div></nav>}</div></header>
     <main>{children}</main>
+    {showSignedInNav && <nav className="nav-mobile" aria-label="Main navigation">
+      <Link href="/discover" className={location === '/discover' ? 'active' : ''}><Heart size={17} />Discover</Link>
+      {session.data?.gender === 'male' && <Link href="/search" className={location === '/search' ? 'active' : ''}><MapPin size={17} />Search</Link>}
+      <Link href="/matches" className={location.startsWith('/matches') || location.startsWith('/chat/') ? 'active' : ''}><Activity size={17} />Matches</Link>
+      <Link href="/profile" className={location === '/profile' ? 'active' : ''}><UserRound size={17} />Profile</Link>
+    </nav>}
     <footer className="site-footer"><span>Made for Lokoja.</span><span className="footer-links"><Link href="/terms" data-testid="link-terms-footer">Terms</Link><Link href="/privacy" data-testid="link-privacy-footer">Privacy</Link><Link href="/contact" data-testid="link-contact-footer">Contact</Link><span>Adults 18+ · Your privacy matters</span></span></footer>
     <div className="route-key" aria-hidden="true">{location}</div>
   </div>;
 }
 
 function AuthPage() {
-  const [mode, setMode] = useState<'register' | 'login'>('register');
+  const [currentPath, navigate] = useLocation();
+  const [mode, setMode] = useState<'register' | 'login'>(currentPath === '/login' ? 'login' : 'register');
   const [error, setError] = useState('');
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
@@ -75,12 +86,14 @@ function AuthPage() {
   const [dateOfBirth, setDateOfBirth] = useState('');
   const [area, setArea] = useState('');
   const [bio, setBio] = useState('');
+  const [wantsRelationship, setWantsRelationship] = useState(true);
+  const [wantsFriendsWithBenefits, setWantsFriendsWithBenefits] = useState(false);
+  const [wantsHookup, setWantsHookup] = useState(false);
   const [photoPaths, setPhotoPaths] = useState<string[]>([]);
   const [terms, setTerms] = useState(false);
   const [privacy, setPrivacy] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
-  const [, navigate] = useLocation();
   const client = useQueryClient();
   const register = useRegisterAccount({ request: { credentials: 'include' } });
   const login = useLoginAccount({ request: { credentials: 'include' } });
@@ -129,6 +142,7 @@ function AuthPage() {
       const payload: RegistrationInput = {
         identifier: identifier.trim(), password, fullName: fullName.trim(), gender,
         dateOfBirth, area: area.trim(), bio: bio.trim(), photoPaths,
+        wantsRelationship, wantsFriendsWithBenefits, wantsHookup,
         acceptsTerms: true, acceptsPrivacy: true,
       };
       await register.mutateAsync({ data: payload });
@@ -165,8 +179,8 @@ function AuthPage() {
           <div><h2>{mode === 'register' ? 'Start with you' : 'Good to see you'}</h2><p>{mode === 'register' ? 'Create your account and profile.' : 'Sign in to pick up where you left off.'}</p></div>
         </div>
         <div className="auth-tabs" role="tablist">
-          <button type="button" className={mode === 'register' ? 'active' : ''} onClick={() => { setMode('register'); setError(''); }} data-testid="tab-register">Create account</button>
-          <button type="button" className={mode === 'login' ? 'active' : ''} onClick={() => { setMode('login'); setError(''); }} data-testid="tab-login">Log in</button>
+          <button type="button" className={mode === 'register' ? 'active' : ''} onClick={() => { setMode('register'); setError(''); navigate('/register'); }} data-testid="tab-register">Create account</button>
+          <button type="button" className={mode === 'login' ? 'active' : ''} onClick={() => { setMode('login'); setError(''); navigate('/login'); }} data-testid="tab-login">Log in</button>
         </div>
         <form className="auth-form" onSubmit={submit}>
           <Field label="Email or Nigerian phone number">
@@ -186,6 +200,12 @@ function AuthPage() {
             <Field label="A little about you" hint={`${bio.length}/240`}>
               <textarea rows={3} maxLength={240} placeholder="What would you like someone local to know?" value={bio} onChange={(e) => setBio(e.target.value)} data-testid="input-bio" />
             </Field>
+            <div className="field-wrap"><span className="field-label">What are you open to?</span>
+              <label className="check-row"><input type="checkbox" checked={wantsRelationship} onChange={(e) => setWantsRelationship(e.target.checked)} /><span>A relationship</span></label>
+              <label className="check-row"><input type="checkbox" checked={wantsFriendsWithBenefits} onChange={(e) => setWantsFriendsWithBenefits(e.target.checked)} /><span>Friends with benefits</span></label>
+              <label className="check-row"><input type="checkbox" checked={wantsHookup} onChange={(e) => setWantsHookup(e.target.checked)} /><span>Hookup</span></label>
+              <span className="field-hint">Choose only what feels right. You can keep your intentions private until you’re ready.</span>
+            </div>
             <div className="photo-label-row"><span className="field-label">Profile photos <b className="required-star">*</b></span><span className="photo-count">{photoPaths.length}/5</span></div>
             <div className="photo-picker-row">
               {photoPreviews.map((src, i) => <div className="photo-thumb" key={`${src}-${i}`}><img src={src} alt={`Selected profile photo ${i + 1}`} loading="lazy" /><button type="button" aria-label={`Remove photo ${i + 1}`} onClick={() => removePhoto(i)} data-testid={`remove-photo-${i}`}><X size={14} /></button></div>)}
@@ -303,6 +323,9 @@ function ProfilePage() {
   const [dateOfBirth, setDateOfBirth] = useState('');
   const [area, setArea] = useState('');
   const [bio, setBio] = useState('');
+  const [wantsRelationship, setWantsRelationship] = useState(false);
+  const [wantsFriendsWithBenefits, setWantsFriendsWithBenefits] = useState(false);
+  const [wantsHookup, setWantsHookup] = useState(false);
   const [photoPaths, setPhotoPaths] = useState<string[]>([]);
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
   const [selfiePreview, setSelfiePreview] = useState('');
@@ -322,6 +345,9 @@ function ProfilePage() {
     setDateOfBirth(initialized.dateOfBirth?.slice(0, 10) ?? '');
     setArea(initialized.area);
     setBio(initialized.bio);
+    setWantsRelationship(initialized.wantsRelationship ?? false);
+    setWantsFriendsWithBenefits(initialized.wantsFriendsWithBenefits ?? false);
+    setWantsHookup(initialized.wantsHookup ?? false);
     setPhotoPaths(initialized.photoPaths ?? []);
   }, [initialized, loadedId]);
 
@@ -361,6 +387,7 @@ function ProfilePage() {
     e.preventDefault(); setError(''); setNotice('');
     if (!photoPaths.length) { setError('Keep at least one profile photo.'); return; }
     const data: ProfileUpdate = { fullName: fullName.trim(), gender, dateOfBirth, area: area.trim(), bio: bio.trim(), photoPaths };
+    if (gender === 'female') Object.assign(data, { wantsRelationship, wantsFriendsWithBenefits, wantsHookup });
     try {
       const saved = await update.mutateAsync({ data });
       client.setQueryData(getGetMyProfileQueryKey(), saved);
@@ -406,6 +433,12 @@ function ProfilePage() {
               </div>
               <Field label="Area in Lokoja"><span className="select-shell"><select required value={area} onChange={(e) => setArea(e.target.value)} data-testid="profile-area"><option value="">Choose your area</option>{['Adankolo','Felele','Ganaja','Lokongoma','Old Market','Phase II','Crusher','Other Lokoja area'].map((item) => <option key={item} value={item}>{item}</option>)}</select><ChevronDown size={16} /></span></Field>
               <Field label="About you" hint={`${bio.length}/240`}><textarea rows={4} maxLength={240} value={bio} onChange={(e) => setBio(e.target.value)} placeholder="A little about what makes you, you." data-testid="profile-bio" /></Field>
+              {gender === 'female' && <section className="category-preferences" aria-labelledby="profile-preferences-title">
+                <div><span className="field-label" id="profile-preferences-title">What are you open to?</span><p className="field-hint">Choose the connection types you would like to see.</p></div>
+                <label className="check-row"><input type="checkbox" checked={wantsRelationship} onChange={(event) => setWantsRelationship(event.target.checked)} data-testid="profile-preference-relationship" /><span>Relationship</span></label>
+                <label className="check-row"><input type="checkbox" checked={wantsFriendsWithBenefits} onChange={(event) => setWantsFriendsWithBenefits(event.target.checked)} data-testid="profile-preference-friends-with-benefits" /><span>Friends with Benefits</span></label>
+                <label className="check-row"><input type="checkbox" checked={wantsHookup} onChange={(event) => setWantsHookup(event.target.checked)} data-testid="profile-preference-hookup" /><span>Hookup</span></label>
+              </section>}
               <div className="photo-label-row"><span className="field-label">Your photos</span><span className="photo-count">{photoPaths.length}/5 photos</span></div>
               <div className="photo-picker-row profile-photos">
                 {photoPaths.map((path, i) => <div className="photo-thumb" key={`${path}-${i}`}><img src={photoPreviews[i] || uploadedImage(path)} alt={`Profile photo ${i + 1}`} loading="lazy" /><button type="button" aria-label={`Remove photo ${i + 1}`} onClick={() => removePhoto(i)} data-testid={`profile-remove-photo-${i}`}><X size={14} /></button></div>)}
@@ -452,8 +485,15 @@ function Router() {
   if (session.isLoading) return <AppShell><div className="loading-view"><div className="skeleton skeleton-title" /><div className="skeleton skeleton-card" /></div></AppShell>;
   return <ErrorBoundary resetKey={location}><Switch>
     <Route path="/" component={AuthPage} />
+    <Route path="/login" component={AuthPage} />
+    <Route path="/register" component={AuthPage} />
     <Route path="/profile" component={ProfilePage} />
     <Route path="/discover" component={DiscoverRoute} />
+    <Route path="/profiles/:profileId" component={FullProfilePage} />
+    <Route path="/matches" component={MatchesPage} />
+    <Route path="/chat/:matchId" component={ChatPage} />
+    <Route path="/search" component={SearchPage} />
+    <Route path="/plan" component={PlanPage} />
     <Route path="/terms" component={TermsPage} />
     <Route path="/privacy" component={PrivacyPage} />
     <Route path="/contact" component={ContactPage} />

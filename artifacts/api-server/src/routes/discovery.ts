@@ -133,6 +133,14 @@ router.post(
 
     const viewer = req.currentUser!;
     const profileId = params.data.profileId;
+    if (
+      body.data.action === "like" &&
+      viewer.gender === "male" &&
+      (!viewer.premiumUntil || viewer.premiumUntil.getTime() <= Date.now())
+    ) {
+      res.status(403).json({ error: "upgrade required" });
+      return;
+    }
     if (profileId === viewer.id) {
       res.status(400).json({ error: "You cannot swipe on your own profile." });
       return;

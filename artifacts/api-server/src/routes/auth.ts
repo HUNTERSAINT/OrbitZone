@@ -73,6 +73,11 @@ export function toSessionUser(user: typeof usersTable.$inferSelect) {
     photoPaths: user.photoPaths,
     isVerified: user.isVerified,
     verificationSelfieSubmitted: Boolean(user.verificationSelfiePath),
+    wantsRelationship: user.wantsRelationship,
+    wantsFriendsWithBenefits: user.wantsFriendsWithBenefits,
+    wantsHookup: user.wantsHookup,
+    premiumUntil: user.premiumUntil?.toISOString() ?? null,
+    hookupUntil: user.hookupUntil?.toISOString() ?? null,
   };
 }
 
@@ -148,6 +153,11 @@ router.post("/auth/register", registrationLimiter, async (req, res): Promise<voi
         area: input.area.trim(),
         bio: input.bio.trim(),
         photoPaths: input.photoPaths,
+        wantsRelationship:
+          input.gender === "female" && Boolean(input.wantsRelationship),
+        wantsFriendsWithBenefits:
+          input.gender === "female" && Boolean(input.wantsFriendsWithBenefits),
+        wantsHookup: input.gender === "female" && Boolean(input.wantsHookup),
       })
       .returning();
 
@@ -204,7 +214,7 @@ router.post("/auth/logout", (req, res): void => {
       res.status(500).json({ error: "Unable to sign out right now." });
       return;
     }
-    res.clearCookie("confluence.sid", { path: "/api" });
+    res.clearCookie("orbitzone.sid", { path: "/" });
     res.sendStatus(204);
   });
 });

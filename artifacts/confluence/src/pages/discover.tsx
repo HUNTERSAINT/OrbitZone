@@ -121,6 +121,7 @@ export default function DiscoverPage() {
           <div className="discovery-info">
             <div className="discovery-location" data-testid={`text-discovery-area-${activeProfile.id}`}><MapPin size={14} /> {activeProfile.area}, Lokoja</div>
             <p className="discovery-bio" data-testid={`text-discovery-bio-${activeProfile.id}`}>{activeProfile.bio}</p>
+            <Link href={`/profiles/${activeProfile.id}`} className="profile-open-link" data-testid={`link-full-profile-${activeProfile.id}`}>View full profile <ArrowRight size={14} /></Link>
           </div>
           <div className="swipe-actions" aria-label={`Choose whether to like or pass on ${activeProfile.fullName}`}>
             <button type="button" className="swipe-action swipe-pass" onClick={() => void choose('pass', activeProfile)} disabled={swipe.isPending} data-testid={`button-pass-${activeProfile.id}`}>

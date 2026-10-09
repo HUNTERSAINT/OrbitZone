@@ -30,6 +30,8 @@ export const usersTable = pgTable("users", {
   wantsRelationship: boolean("wants_relationship").notNull().default(false),
   wantsFriendsWithBenefits: boolean("wants_friends_with_benefits").notNull().default(false),
   wantsHookup: boolean("wants_hookup").notNull().default(false),
+  premiumUntil: timestamp("premium_until", { withTimezone: true }),
+  hookupUntil: timestamp("hookup_until", { withTimezone: true }),
   acceptsTermsAt: timestamp("accepts_terms_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
