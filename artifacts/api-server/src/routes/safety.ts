@@ -4,7 +4,7 @@ import rateLimit from "express-rate-limit";
 import {
   BlockUserParams,
   BlockUserResponse,
-  ReportInputBody,
+  SubmitReportBody,
   SubmitReportResponse,
   UnblockUserParams,
 } from "@workspace/api-zod";
@@ -40,7 +40,7 @@ router.post(
   requireUser,
   reportLimiter,
   async (req, res): Promise<void> => {
-    const body = ReportInputBody.safeParse(req.body);
+    const body = SubmitReportBody.safeParse(req.body);
     if (!body.success || body.data.targetUserId === req.currentUser!.id) {
       res.status(400).json({ error: "Choose a valid member and report reason." });
       return;

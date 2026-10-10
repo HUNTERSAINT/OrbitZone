@@ -125,8 +125,8 @@ export interface SessionUser {
   area: string;
   bio: string;
   photoPaths: string[];
-  isVerified?: boolean;
-  isAdmin?: boolean;
+  isVerified: boolean;
+  isAdmin: boolean;
   verificationSelfieSubmitted: boolean;
   wantsRelationship: boolean;
   wantsFriendsWithBenefits: boolean;
@@ -337,7 +337,7 @@ export interface PaymentCheckout {
   plan: PaymentCheckoutPlan;
   amountKobo: number;
   currency: PaymentCheckoutCurrency;
-  authorizationUrl: string;
+  publicKey: string;
 }
 
 export interface VerifyPaymentInput {

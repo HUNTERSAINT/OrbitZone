@@ -15,8 +15,8 @@ export interface SessionUser {
   area: string;
   bio: string;
   photoPaths: string[];
-  isVerified?: boolean;
-  isAdmin?: boolean;
+  isVerified: boolean;
+  isAdmin: boolean;
   verificationSelfieSubmitted: boolean;
   wantsRelationship: boolean;
   wantsFriendsWithBenefits: boolean;

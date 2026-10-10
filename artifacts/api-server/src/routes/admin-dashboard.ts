@@ -1,10 +1,6 @@
-import { alias, and, count, desc, eq, gte, ilike, or, sql, sum } from "drizzle-orm";
+import { aliasedTable, and, count, desc, eq, gte, ilike, or, sql, sum } from "drizzle-orm";
 import { Router, type IRouter } from "express";
 import {
-  AdminOverviewResponse,
-  AdminPaymentsResponse,
-  AdminReportsResponse,
-  AdminUsersResponse,
   GetAdminOverviewResponse,
   GetAdminPaymentsResponse,
   GetAdminReportsQueryParams,
@@ -27,8 +23,8 @@ import {
 import { requireAdmin, requireUser } from "../middlewares/require-auth";
 
 const router: IRouter = Router();
-const reporterTable = alias(usersTable, "reporter");
-const targetTable = alias(usersTable, "report_target");
+const reporterTable = aliasedTable(usersTable, "reporter");
+const targetTable = aliasedTable(usersTable, "report_target");
 
 function toAdminUser(user: typeof usersTable.$inferSelect) {
   return {

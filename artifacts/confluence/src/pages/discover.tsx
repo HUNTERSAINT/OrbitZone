@@ -4,6 +4,7 @@ import { useGetCurrentUser, getGetCurrentUserQueryKey, useGetDiscoveryFeed, getG
 import type { DiscoveryProfile, SwipeInput } from '@workspace/api-client-react';
 import { ArrowRight, Check, CircleAlert, Heart, LoaderCircle, MapPin, RefreshCw, ShieldCheck, X } from 'lucide-react';
 import { Link } from 'wouter';
+import { profilePhotoUrl } from '@/lib/profile-photo-url';
 
 type SwipeChoice = SwipeInput['action'];
 
@@ -52,8 +53,6 @@ export default function DiscoverPage() {
     setDismissed(new Set());
     await feed.refetch();
   }
-
-  const photoUrl = (path: string) => `/api/storage${path}`;
 
   if (current.isLoading) {
     return <section className="discover-page" data-testid="page-discover-loading">
@@ -111,7 +110,7 @@ export default function DiscoverPage() {
         </div>}
         {!feed.isLoading && !feed.isError && !lastMatch && activeProfile && <article className="discovery-card" data-testid={`card-discovery-profile-${activeProfile.id}`}>
           <div className="discovery-photo-wrap">
-            <img className="discovery-photo" src={photoUrl(activeProfile.photoPath)} alt={`Photo of ${activeProfile.fullName}`} data-testid={`img-discovery-profile-${activeProfile.id}`} />
+            <img className="discovery-photo" src={profilePhotoUrl(activeProfile.photoPath)} alt={`Photo of ${activeProfile.fullName}`} loading="lazy" data-testid={`img-discovery-profile-${activeProfile.id}`} />
             <div className="photo-shade" />
             <div className="photo-caption">
               <h2 data-testid={`text-discovery-name-${activeProfile.id}`}>{activeProfile.fullName}<span className="age">, {activeProfile.age}</span></h2>

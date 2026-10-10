@@ -36,7 +36,7 @@ app.use(
 app.use(
   express.json({
     verify: (req, _res, buffer) => {
-      req.rawBody = Buffer.from(buffer);
+      (req as typeof req & { rawBody?: Buffer }).rawBody = Buffer.from(buffer);
     },
   }),
 );

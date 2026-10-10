@@ -13,5 +13,5 @@ export interface PaymentCheckout {
   plan: PaymentCheckoutPlan;
   amountKobo: number;
   currency: PaymentCheckoutCurrency;
-  authorizationUrl: string;
+  publicKey: string;
 }

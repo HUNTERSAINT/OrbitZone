@@ -2,7 +2,7 @@ import { type ChangeEvent, type FormEvent, type ReactNode, useEffect, useState }
 import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
 import {
   Activity, ArrowRight, Camera, Check, ChevronDown, CircleAlert,
-  Heart, ImagePlus, KeyRound, LoaderCircle, LogOut, MapPin, ShieldCheck, Trash2, UserRound,
+  Heart, ImagePlus, KeyRound, LoaderCircle, LogOut, MapPin, MessageCircle, ShieldCheck, Trash2, UserRound,
   Waves, X,
 } from 'lucide-react';
 import {
@@ -16,8 +16,10 @@ import { Link, Route, Switch, useLocation, Router as WouterRouter } from 'wouter
 import { ErrorBoundary } from '@/components/error-boundary';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
+import { profilePhotoUrl } from '@/lib/profile-photo-url';
 import NotFound from '@/pages/not-found';
 import DiscoverPage from '@/pages/discover';
+import AdminPage from '@/pages/admin';
 import { ChatPage, FullProfilePage, MatchesPage, PlanPage, SearchPage } from '@/pages/community';
 import './index.css';
 
@@ -62,7 +64,7 @@ function AppShell({ children }: { children: ReactNode }) {
   const policyOrAuth = ['/', '/login', '/register', '/terms', '/privacy'].includes(location);
   const showSignedInNav = !!session.data && !policyOrAuth;
   return <div className="app-shell">
-    <header className="topbar"><div className="topbar-inner"><Link href="/" className="brand-link" data-testid="link-home"><Brand /></Link>{showSignedInNav && <nav className="topbar-nav" aria-label="Main navigation"><Link href="/discover" className={location === '/discover' ? 'discover-nav-active' : ''} data-testid="link-discover">Discover</Link>{session.data?.gender === 'male' && <Link href="/search" data-testid="link-search">Search</Link>}<Link href="/matches" data-testid="link-matches">Matches</Link><Link href="/profile" data-testid="link-profile">Profile</Link><Link href="/plan" data-testid="link-plan">Plan</Link><div className="topbar-loc"><MapPin size={14} /> Lokoja, Kogi</div></nav>}</div></header>
+    <header className="topbar"><div className="topbar-inner"><Link href="/" className="brand-link" data-testid="link-home"><Brand /></Link>{showSignedInNav && <nav className="topbar-nav" aria-label="Main navigation"><Link href="/discover" className={location === '/discover' ? 'discover-nav-active' : ''} data-testid="link-discover">Discover</Link>{session.data?.gender === 'male' && <Link href="/search" data-testid="link-search">Search</Link>}<Link href="/matches" data-testid="link-matches">Matches</Link><Link href="/profile" data-testid="link-profile">Profile</Link><Link href="/plan" data-testid="link-plan">Plan</Link>{session.data?.isAdmin && <Link href="/admin">Admin</Link>}<div className="topbar-loc"><MapPin size={14} /> Lokoja, Kogi</div></nav>}</div></header>
     <main>{children}</main>
     {showSignedInNav && <nav className="nav-mobile" aria-label="Main navigation">
       <Link href="/discover" className={location === '/discover' ? 'active' : ''}><Heart size={17} />Discover</Link>
@@ -70,7 +72,7 @@ function AppShell({ children }: { children: ReactNode }) {
       <Link href="/matches" className={location.startsWith('/matches') || location.startsWith('/chat/') ? 'active' : ''}><Activity size={17} />Matches</Link>
       <Link href="/profile" className={location === '/profile' ? 'active' : ''}><UserRound size={17} />Profile</Link>
     </nav>}
-    <footer className="site-footer"><span>Made for Lokoja.</span><span className="footer-links"><Link href="/terms" data-testid="link-terms-footer">Terms</Link><Link href="/privacy" data-testid="link-privacy-footer">Privacy</Link><Link href="/contact" data-testid="link-contact-footer">Contact</Link><span>Adults 18+ · Your privacy matters</span></span></footer>
+    <footer className="site-footer"><span>© Orbit Zone, Lokoja, Nigeria</span><span className="footer-links"><Link href="/terms" data-testid="link-terms-footer">Terms</Link><Link href="/privacy" data-testid="link-privacy-footer">Privacy</Link><Link href="/contact" data-testid="link-contact-footer">Contact</Link></span></footer>
     <div className="route-key" aria-hidden="true">{location}</div>
   </div>;
 }
@@ -86,7 +88,7 @@ function AuthPage() {
   const [dateOfBirth, setDateOfBirth] = useState('');
   const [area, setArea] = useState('');
   const [bio, setBio] = useState('');
-  const [wantsRelationship, setWantsRelationship] = useState(true);
+  const [wantsRelationship, setWantsRelationship] = useState(false);
   const [wantsFriendsWithBenefits, setWantsFriendsWithBenefits] = useState(false);
   const [wantsHookup, setWantsHookup] = useState(false);
   const [photoPaths, setPhotoPaths] = useState<string[]>([]);
@@ -228,6 +230,36 @@ function AuthPage() {
   </AppShell>;
 }
 
+function LandingPage() {
+  const current = useGetCurrentUser({ query: { queryKey: getGetCurrentUserQueryKey(), retry: false }, request: { credentials: 'include' } });
+  return <AppShell>
+    <section className="landing-page">
+      <div className="landing-hero">
+        <div className="landing-copy">
+          <div className="eyebrow"><span className="eyebrow-line" /> Lokoja, meet closer</div>
+          <h1>Where Lokoja<br/><span>meets.</span></h1>
+          <p>A more thoughtful way to meet people around your corner of the city. Start with a profile, find a mutual hello, and let conversation lead.</p>
+          <div className="landing-actions"><Link href={current.data ? '/discover' : '/register'} className="btn btn-primary">{current.data ? 'Go to Discover' : 'Join Orbit Zone'} <ArrowRight size={17}/></Link><Link href="/login" className="btn btn-outline">I have an account</Link></div>
+          <div className="landing-proof"><ShieldCheck size={17}/> Adults 18+ · Made for Lokoja residents</div>
+        </div>
+        <div className="landing-art" aria-label="Flowing river and heart illustration">
+          <div className="landing-art-orbit orbit-one"/><div className="landing-art-orbit orbit-two"/>
+          <div className="landing-heart"><RiverHeart/></div>
+          <span className="art-note note-top">A good hello<br/>starts nearby</span><span className="art-note note-bottom">Kogi State<br/>Nigeria</span>
+          <svg viewBox="0 0 560 420" aria-hidden="true"><path d="M-30 250c128-3 105-125 227-123 96 2 101 149 208 148 71-1 87-63 186-65" fill="none" stroke="rgba(255,255,255,.35)" strokeWidth="68" strokeLinecap="round"/><path d="M-30 250c128-3 105-125 227-123 96 2 101 149 208 148 71-1 87-63 186-65" fill="none" stroke="rgba(255,255,255,.83)" strokeWidth="3" strokeLinecap="round"/><path d="M-20 310c119 2 130-74 225-75s115 80 210 80 113-48 184-49" fill="none" stroke="rgba(255,255,255,.54)" strokeWidth="3" strokeLinecap="round"/></svg>
+        </div>
+      </div>
+      <div className="landing-feature-head"><div className="eyebrow"><span className="eyebrow-line"/> Three steps. No rush.</div><h2>Meet on your own terms.</h2></div>
+      <div className="landing-steps">
+        <article><span>01</span><Heart size={21}/><h3>Swipe</h3><p>See people who live around Lokoja. Read a little, then choose what feels right.</p></article>
+        <article><span>02</span><Check size={21}/><h3>Match</h3><p>A mutual like makes the first introduction. Your pace stays yours.</p></article>
+        <article><span>03</span><MessageCircle size={21}/><h3>Chat</h3><p>Start a conversation in the app and see where a kind hello can go.</p></article>
+      </div>
+      <div className="landing-safety"><ShieldCheck size={22}/><div><strong>Adults only. Connection first.</strong><p>Orbit Zone is for people 18 and over. Keep early conversations in the app, meet in public, and trust your instincts.</p></div><Link href="/terms">Our safety promise <ArrowRight size={15}/></Link></div>
+    </section>
+  </AppShell>;
+}
+
 async function optimizeImage(source: File): Promise<File> {
   if (!['image/jpeg', 'image/png', 'image/webp'].includes(source.type)) throw new Error('Use a JPEG, PNG, or WebP image.');
   if (source.size > 5 * 1024 * 1024) throw new Error('Each photo must be 5 MB or smaller.');
@@ -303,7 +335,7 @@ function ContactPage() {
       <Button type="submit" className="contact-submit" testId="button-prepare-contact">Prepare an email <ArrowRight size={16} /></Button>
         <p className="field-hint">This opens your device’s email app with a prepared message. Do not include passwords or sensitive identity documents.</p>
       </form>
-      <p className="contact-safety">For immediate danger, contact local emergency services or someone you trust.</p>
+      <p className="contact-safety"><strong>Never send money to someone you match with.</strong> For immediate danger, contact local emergency services or someone you trust.</p>
     </section>
   </AppShell>;
 }
@@ -386,8 +418,7 @@ function ProfilePage() {
   async function saveProfile(e: FormEvent) {
     e.preventDefault(); setError(''); setNotice('');
     if (!photoPaths.length) { setError('Keep at least one profile photo.'); return; }
-    const data: ProfileUpdate = { fullName: fullName.trim(), gender, dateOfBirth, area: area.trim(), bio: bio.trim(), photoPaths };
-    if (gender === 'female') Object.assign(data, { wantsRelationship, wantsFriendsWithBenefits, wantsHookup });
+    const data: ProfileUpdate = { fullName: fullName.trim(), dateOfBirth, area: area.trim(), bio: bio.trim(), photoPaths, wantsRelationship, wantsFriendsWithBenefits, wantsHookup };
     try {
       const saved = await update.mutateAsync({ data });
       client.setQueryData(getGetMyProfileQueryKey(), saved);
@@ -414,7 +445,7 @@ function ProfilePage() {
   if (profile.isError && !profile.data) return <AppShell><div className="state-card"><div className="state-icon"><CircleAlert /></div><h2>We couldn’t load your profile</h2><p>Please check your connection and try again.</p><Button onClick={() => void profile.refetch()}>Try again</Button></div></AppShell>;
 
   const pending = !!user?.verificationSelfieSubmitted && !user.isVerified;
-  const uploadedImage = (path: string) => path.startsWith('blob:') ? path : `/api/storage${path}`;
+  const uploadedImage = (path: string) => path.startsWith('blob:') ? path : profilePhotoUrl(path);
   return <AppShell>
     <section className="profile-page fade-in">
       <div className="profile-welcome">
@@ -428,17 +459,17 @@ function ProfilePage() {
             <form className="profile-form" onSubmit={saveProfile}>
               <Field label="Full name"><input required minLength={2} maxLength={80} value={fullName} onChange={(e) => setFullName(e.target.value)} data-testid="profile-full-name" /></Field>
               <div className="two-fields">
-                <Field label="Gender"><span className="select-shell"><select value={gender} onChange={(e) => setGender(e.target.value as 'male' | 'female')} data-testid="profile-gender"><option value="female">Woman</option><option value="male">Man</option></select><ChevronDown size={16} /></span></Field>
+                <Field label="Gender"><input value={gender === 'female' ? 'Woman' : 'Man'} disabled aria-describedby="gender-locked" data-testid="profile-gender" /><span className="field-hint" id="gender-locked">Gender is set at signup to protect profile integrity.</span></Field>
                 <Field label="Date of birth"><input required type="date" max={new Date(new Date().setFullYear(new Date().getFullYear() - 18)).toISOString().slice(0, 10)} value={dateOfBirth} onChange={(e) => setDateOfBirth(e.target.value)} data-testid="profile-dob" /></Field>
               </div>
               <Field label="Area in Lokoja"><span className="select-shell"><select required value={area} onChange={(e) => setArea(e.target.value)} data-testid="profile-area"><option value="">Choose your area</option>{['Adankolo','Felele','Ganaja','Lokongoma','Old Market','Phase II','Crusher','Other Lokoja area'].map((item) => <option key={item} value={item}>{item}</option>)}</select><ChevronDown size={16} /></span></Field>
               <Field label="About you" hint={`${bio.length}/240`}><textarea rows={4} maxLength={240} value={bio} onChange={(e) => setBio(e.target.value)} placeholder="A little about what makes you, you." data-testid="profile-bio" /></Field>
-              {gender === 'female' && <section className="category-preferences" aria-labelledby="profile-preferences-title">
+              <section className="category-preferences" aria-labelledby="profile-preferences-title">
                 <div><span className="field-label" id="profile-preferences-title">What are you open to?</span><p className="field-hint">Choose the connection types you would like to see.</p></div>
                 <label className="check-row"><input type="checkbox" checked={wantsRelationship} onChange={(event) => setWantsRelationship(event.target.checked)} data-testid="profile-preference-relationship" /><span>Relationship</span></label>
                 <label className="check-row"><input type="checkbox" checked={wantsFriendsWithBenefits} onChange={(event) => setWantsFriendsWithBenefits(event.target.checked)} data-testid="profile-preference-friends-with-benefits" /><span>Friends with Benefits</span></label>
                 <label className="check-row"><input type="checkbox" checked={wantsHookup} onChange={(event) => setWantsHookup(event.target.checked)} data-testid="profile-preference-hookup" /><span>Hookup</span></label>
-              </section>}
+              </section>
               <div className="photo-label-row"><span className="field-label">Your photos</span><span className="photo-count">{photoPaths.length}/5 photos</span></div>
               <div className="photo-picker-row profile-photos">
                 {photoPaths.map((path, i) => <div className="photo-thumb" key={`${path}-${i}`}><img src={photoPreviews[i] || uploadedImage(path)} alt={`Profile photo ${i + 1}`} loading="lazy" /><button type="button" aria-label={`Remove photo ${i + 1}`} onClick={() => removePhoto(i)} data-testid={`profile-remove-photo-${i}`}><X size={14} /></button></div>)}
@@ -475,6 +506,12 @@ function ProfilePage() {
 function DiscoverRoute() {
   return <AppShell><DiscoverPage /></AppShell>;
 }
+function FullProfileRoute() { return <AppShell><FullProfilePage /></AppShell>; }
+function MatchesRoute() { return <AppShell><MatchesPage /></AppShell>; }
+function ChatRoute() { return <AppShell><ChatPage /></AppShell>; }
+function SearchRoute() { return <AppShell><SearchPage /></AppShell>; }
+function PlanRoute() { return <AppShell><PlanPage /></AppShell>; }
+function AdminRoute() { return <AppShell><AdminPage /></AppShell>; }
 
 function Router() {
   const [location, navigate] = useLocation();
@@ -484,16 +521,17 @@ function Router() {
   }, [session.data, location, navigate]);
   if (session.isLoading) return <AppShell><div className="loading-view"><div className="skeleton skeleton-title" /><div className="skeleton skeleton-card" /></div></AppShell>;
   return <ErrorBoundary resetKey={location}><Switch>
-    <Route path="/" component={AuthPage} />
+    <Route path="/" component={LandingPage} />
     <Route path="/login" component={AuthPage} />
     <Route path="/register" component={AuthPage} />
     <Route path="/profile" component={ProfilePage} />
     <Route path="/discover" component={DiscoverRoute} />
-    <Route path="/profiles/:profileId" component={FullProfilePage} />
-    <Route path="/matches" component={MatchesPage} />
-    <Route path="/chat/:matchId" component={ChatPage} />
-    <Route path="/search" component={SearchPage} />
-    <Route path="/plan" component={PlanPage} />
+    <Route path="/profiles/:profileId" component={FullProfileRoute} />
+    <Route path="/matches" component={MatchesRoute} />
+    <Route path="/chat/:matchId" component={ChatRoute} />
+    <Route path="/search" component={SearchRoute} />
+    <Route path="/plan" component={PlanRoute} />
+    <Route path="/admin" component={AdminRoute} />
     <Route path="/terms" component={TermsPage} />
     <Route path="/privacy" component={PrivacyPage} />
     <Route path="/contact" component={ContactPage} />

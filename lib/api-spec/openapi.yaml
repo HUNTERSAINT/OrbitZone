@@ -1162,7 +1162,7 @@ components:
         - bio
         - photoPaths
         - isVerified
-         - isAdmin
+        - isAdmin
         - verificationSelfieSubmitted
         - wantsRelationship
         - wantsFriendsWithBenefits

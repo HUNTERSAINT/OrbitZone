@@ -1,3 +1,11 @@
-<svg width="180" height="180" viewBox="0 0 180 180" fill="none" xmlns="http://www.w3.org/2000/svg">
-<rect width="180" height="180" rx="36" fill="#FF3C00"/>
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="river" x1="8" y1="8" x2="58" y2="58" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F188A2"/>
+      <stop offset="1" stop-color="#C52D56"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="19" fill="url(#river)"/>
+  <path d="M8 18C18 18 20 29 29 29C36 29 39 22 44 19C47 17 50 17 54 19M7 35C15 32 21 33 26 37C31 41 33 50 41 50C49 50 52 39 58 35" stroke="#FFF" stroke-linecap="round" stroke-width="3.4"/>
+  <path d="M32 29C35 22 43 22 46 27C50 33 45 39 32 49C19 40 14 33 18 27C21 22 29 22 32 29Z" stroke="#FFF" stroke-linejoin="round" stroke-width="1.8"/>
 </svg>
