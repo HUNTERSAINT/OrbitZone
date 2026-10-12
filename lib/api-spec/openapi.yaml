@@ -2,14 +2,34 @@ openapi: 3.1.0
 info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
-  version: 0.1.0
-  description: API specification
+  version: 0.2.0
+  description: Orbit Zone authentication, adult profiles, verification, discovery, and photo upload API.
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: Auth
+    description: Email or phone registration and session management.
+  - name: Profiles
+    description: The authenticated user's profile and selfie verification submission.
+  - name: Storage
+    description: Secure profile photo and verification selfie uploads.
+  - name: Discovery
+    description: Swipe feed and persistent like/pass decisions.
+  - name: Matches
+    description: Mutual matches and private conversations.
+  - name: Search
+    description: Preference-based search for men with the required active plan.
+  - name: Plans
+    description: Current plan status and feature access.
+  - name: Admin
+    description: Restricted account verification review actions.
+  - name: Payments
+    description: Paystack checkout and server-verified plan access.
+  - name: Safety
+    description: Member reports and mutual blocking controls.
 paths:
   /healthz:
     get:
@@ -24,6 +44,982 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /auth/register:
+    post:
+      operationId: registerAccount
+      tags: [Auth]
+      summary: Register an adult Lokoja resident
+      description: Creates a profile and starts a secure session. The server rejects anyone under 18.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegistrationInput"
+      responses:
+        "201":
+          description: Account registered and session started.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionUser"
+        "400":
+          description: Invalid registration details or user is under 18.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "409":
+          description: Email address or phone number is already registered.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "429":
+          description: Registration rate limit exceeded.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /auth/login:
+    post:
+      operationId: loginAccount
+      tags: [Auth]
+      summary: Start a session with an email address or phone number
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginInput"
+      responses:
+        "200":
+          description: Session started.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionUser"
+        "400":
+          description: Invalid login details.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "401":
+          description: Invalid email/phone number or password.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "429":
+          description: Login rate limit exceeded.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /auth/logout:
+    post:
+      operationId: logoutAccount
+      tags: [Auth]
+      summary: End the current session
+      responses:
+        "204":
+          description: Session ended.
+  /auth/me:
+    get:
+      operationId: getCurrentUser
+      tags: [Auth]
+      summary: Get the current session user
+      responses:
+        "200":
+          description: Current session user and profile.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionUser"
+        "401":
+          description: No active session.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /profiles/me:
+    get:
+      operationId: getMyProfile
+      tags: [Profiles]
+      summary: Get the current user's profile
+      responses:
+        "200":
+          description: Current user's profile.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionUser"
+        "401":
+          description: Authentication required.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+    patch:
+      operationId: updateMyProfile
+      tags: [Profiles]
+      summary: Update the current user's profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProfileUpdate"
+      responses:
+        "200":
+          description: Profile updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionUser"
+        "400":
+          description: Invalid profile details.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "401":
+          description: Authentication required.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /profiles/me/verification-selfie:
+    post:
+      operationId: submitVerificationSelfie
+      tags: [Profiles]
+      summary: Submit or replace a selfie for manual verification
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VerificationSelfieInput"
+      responses:
+        "200":
+          description: Selfie submitted and awaiting admin review.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionUser"
+        "400":
+          description: Invalid selfie object path.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "401":
+          description: Authentication required.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /account:
+    delete:
+      operationId: deleteMyAccount
+      tags: [Auth]
+      summary: Permanently delete the current user's account
+      responses:
+        "204":
+          description: Account and profile data deleted.
+        "401":
+          description: Authentication required.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /storage/uploads/request-url:
+    post:
+      operationId: requestUploadUrl
+      tags: [Storage]
+      summary: Request a presigned upload URL for a profile image
+      description: Uploads are limited to JPEG, PNG, and WebP and capped at 5 MiB. A short-lived, rate-limited onboarding upload may be requested before registration; profile edits require a session.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UploadUrlRequest"
+      responses:
+        "200":
+          description: Presigned upload URL generated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UploadUrlResponse"
+        "400":
+          description: Invalid file metadata.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "429":
+          description: Upload URL rate limit exceeded.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /feed:
+    get:
+      operationId: getDiscoveryFeed
+      tags: [Discovery]
+      summary: Get profiles the current member has not already passed or liked
+      description: Returns opposite-gender profiles in Lokoja, excluding banned, blocked, and previously swiped accounts. Men see women who selected Relationship or Friends with Benefits.
+      responses:
+        "200":
+          description: Current discovery cards.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DiscoveryFeed"
+        "401":
+          description: Authentication required.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /swipes/{profileId}:
+    post:
+      operationId: recordSwipe
+      tags: [Discovery]
+      summary: Like or pass on a profile
+      parameters:
+        - name: profileId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SwipeInput"
+      responses:
+        "200":
+          description: Swipe recorded and mutual match status returned.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SwipeResult"
+        "400":
+          description: Invalid profile or swipe action.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "401":
+          description: Authentication required.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "404":
+          description: Profile is not available for discovery.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "409":
+          description: This profile already has a different recorded swipe.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /profiles/{profileId}:
+    get:
+      operationId: getFullProfile
+      tags: [Profiles]
+      summary: View a full profile
+      description: Men need active Premium. Women can view profiles for free.
+      parameters:
+        - name: profileId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Full member profile.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FullProfile"
+        "401":
+          description: Authentication required.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "403":
+          description: Premium access required.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "404":
+          description: Profile is unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /matches:
+    get:
+      operationId: getMatches
+      tags: [Matches]
+      summary: List the current user's matches
+      description: Men need active Premium. Women can use matching for free.
+      responses:
+        "200":
+          description: Matches ordered by recent activity.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MatchesResponse"
+        "401":
+          description: Authentication required.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "403":
+          description: Premium access required.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /matches/{matchId}/messages:
+    get:
+      operationId: getMatchMessages
+      tags: [Matches]
+      summary: Get message history for a match
+      parameters:
+        - name: matchId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Conversation message history.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessagesResponse"
+        "401":
+          description: Authentication required.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "403":
+          description: Premium access required for men.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "404":
+          description: Match not found or unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+    post:
+      operationId: sendMatchMessage
+      tags: [Matches]
+      summary: Send a message to a match
+      description: Saves the message and emits it to the other matched user in real time.
+      parameters:
+        - name: matchId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MessageInput"
+      responses:
+        "201":
+          description: Message saved and delivered.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Message"
+        "400":
+          description: Invalid message.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "401":
+          description: Authentication required.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "403":
+          description: Premium access required for men.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "404":
+          description: Match not found or unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "429":
+          description: Message rate limit exceeded.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /matches/{matchId}/read:
+    post:
+      operationId: markMatchRead
+      tags: [Matches]
+      summary: Mark a match conversation as read
+      parameters:
+        - name: matchId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Conversation marked as read.
+        "401":
+          description: Authentication required.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "403":
+          description: Premium access required for men.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "404":
+          description: Match not found or unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /search:
+    get:
+      operationId: searchProfiles
+      tags: [Search]
+      summary: Search profiles by relationship preference
+      description: Men need active Premium for Relationship and Friends with Benefits; Hookup also requires its separate active add-on. Every result opted into its category.
+      parameters:
+        - name: category
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [relationship, friends-with-benefits, hookup]
+        - name: minAge
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 18
+            maximum: 100
+        - name: maxAge
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 18
+            maximum: 100
+        - name: area
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 80
+      responses:
+        "200":
+          description: Category-matched profiles.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SearchResponse"
+        "400":
+          description: Invalid search filters.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "401":
+          description: Authentication required.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "403":
+          description: Premium or Hookup add-on access required.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /plan:
+    get:
+      operationId: getMyPlan
+      tags: [Plans]
+      summary: Get current feature access and expiry dates
+      responses:
+        "200":
+          description: Current plan state.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlanStatus"
+        "401":
+          description: Authentication required.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /admin/users/{userId}/verification:
+    patch:
+      operationId: reviewUserVerification
+      tags: [Admin]
+      summary: Mark a member's profile as verified or unverified
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VerificationDecision"
+      responses:
+        "200":
+          description: Verification status updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionUser"
+        "401":
+          description: Authentication required.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "403":
+          description: Admin access required.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "404":
+          description: Profile not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /payments/initialize:
+    post:
+      operationId: initializePayment
+      tags: [Payments]
+      summary: Start a Paystack checkout for a weekly plan
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InitializePaymentInput"
+      responses:
+        "201":
+          description: Pending payment record created for the Paystack inline popup.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentCheckout"
+        "400":
+          description: Invalid plan or billing email.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "401":
+          description: Authentication required.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "403":
+          description: Only men can purchase plans.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "502":
+          description: Paystack could not initialize checkout.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /payments/verify:
+    post:
+      operationId: verifyPayment
+      tags: [Payments]
+      summary: Verify a payment with Paystack before granting plan access
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VerifyPaymentInput"
+      responses:
+        "200":
+          description: Verified payment status and current plan expiry.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentVerification"
+        "400":
+          description: Invalid reference or payment details do not match.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "401":
+          description: Authentication required.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "404":
+          description: Payment reference not found for the current user.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "502":
+          description: Paystack could not verify the transaction.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /reports:
+    post:
+      operationId: submitReport
+      tags: [Safety]
+      summary: Report a member profile or a chat participant
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReportInput"
+      responses:
+        "201":
+          description: Report submitted for admin review.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReportSubmission"
+        "400":
+          description: Invalid report details.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "401":
+          description: Authentication required.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "404":
+          description: Target member or chat not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "429":
+          description: Report rate limit exceeded.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /users/{userId}/block:
+    post:
+      operationId: blockUser
+      tags: [Safety]
+      summary: Block a member from viewing or messaging the current user
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Member blocked.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BlockStatus"
+        "400":
+          description: Invalid member identifier.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "401":
+          description: Authentication required.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "404":
+          description: Member not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+    delete:
+      operationId: unblockUser
+      tags: [Safety]
+      summary: Remove a block created by the current user
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Block removed.
+        "401":
+          description: Authentication required.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /admin/overview:
+    get:
+      operationId: getAdminOverview
+      tags: [Admin]
+      summary: Get member and weekly revenue totals
+      responses:
+        "200":
+          description: Admin dashboard totals.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminOverview"
+        "401":
+          description: Authentication required.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "403":
+          description: Admin access required.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /admin/users:
+    get:
+      operationId: getAdminUsers
+      tags: [Admin]
+      summary: Search member accounts for moderation
+      parameters:
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 100
+      responses:
+        "200":
+          description: Searchable member list.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminUsersResponse"
+        "401":
+          description: Authentication required.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "403":
+          description: Admin access required.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /admin/users/{userId}/status:
+    patch:
+      operationId: updateAdminUserStatus
+      tags: [Admin]
+      summary: Ban or unban a member account
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminUserStatusInput"
+      responses:
+        "200":
+          description: Account status updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminUser"
+        "401":
+          description: Authentication required.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "403":
+          description: Admin access required.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "404":
+          description: Member not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /admin/reports:
+    get:
+      operationId: getAdminReports
+      tags: [Admin]
+      summary: List safety reports
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [open, resolved, all]
+            default: open
+      responses:
+        "200":
+          description: Report queue.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminReportsResponse"
+        "401":
+          description: Authentication required.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "403":
+          description: Admin access required.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /admin/reports/{reportId}:
+    patch:
+      operationId: updateAdminReport
+      tags: [Admin]
+      summary: Resolve or reopen a safety report
+      parameters:
+        - name: reportId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminReportUpdateInput"
+      responses:
+        "200":
+          description: Report updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminReport"
+        "401":
+          description: Authentication required.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "403":
+          description: Admin access required.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "404":
+          description: Report not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /admin/payments:
+    get:
+      operationId: getAdminPayments
+      tags: [Admin]
+      summary: List recent payment transactions
+      responses:
+        "200":
+          description: Recent payments.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminPaymentsResponse"
+        "401":
+          description: Authentication required.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "403":
+          description: Admin access required.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
 components:
   schemas:
     HealthStatus:
@@ -31,6 +1027,624 @@ components:
       properties:
         status:
           type: string
+      required: [status]
+    ErrorEnvelope:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+    RegistrationInput:
+      type: object
+      additionalProperties: false
       required:
-        - status
-
+        - identifier
+        - password
+        - fullName
+        - gender
+        - dateOfBirth
+        - area
+        - bio
+        - photoPaths
+        - acceptsTerms
+        - acceptsPrivacy
+      properties:
+        identifier:
+          type: string
+          minLength: 5
+          maxLength: 254
+          description: Email address or Nigerian phone number.
+        password:
+          type: string
+          minLength: 10
+          maxLength: 128
+        fullName:
+          type: string
+          minLength: 2
+          maxLength: 80
+        gender:
+          type: string
+          enum: [male, female]
+        dateOfBirth:
+          type: string
+          format: date
+        area:
+          type: string
+          minLength: 2
+          maxLength: 80
+        bio:
+          type: string
+          maxLength: 240
+        wantsRelationship:
+          type: boolean
+        wantsFriendsWithBenefits:
+          type: boolean
+        wantsHookup:
+          type: boolean
+        photoPaths:
+          type: array
+          minItems: 1
+          maxItems: 5
+          items:
+            type: string
+            minLength: 1
+            maxLength: 512
+        acceptsTerms:
+          type: boolean
+          enum: [true]
+        acceptsPrivacy:
+          type: boolean
+          enum: [true]
+    LoginInput:
+      type: object
+      additionalProperties: false
+      required: [identifier, password]
+      properties:
+        identifier:
+          type: string
+          minLength: 3
+          maxLength: 254
+        password:
+          type: string
+          minLength: 1
+          maxLength: 128
+    ProfileUpdate:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        fullName:
+          type: string
+          minLength: 2
+          maxLength: 80
+        dateOfBirth:
+          type: string
+          format: date
+        area:
+          type: string
+          minLength: 2
+          maxLength: 80
+        bio:
+          type: string
+          maxLength: 240
+        wantsRelationship:
+          type: boolean
+        wantsFriendsWithBenefits:
+          type: boolean
+        wantsHookup:
+          type: boolean
+        photoPaths:
+          type: array
+          minItems: 1
+          maxItems: 5
+          items:
+            type: string
+            minLength: 1
+            maxLength: 512
+    VerificationSelfieInput:
+      type: object
+      additionalProperties: false
+      required: [selfiePath]
+      properties:
+        selfiePath:
+          type: string
+          minLength: 1
+          maxLength: 512
+          description: App Storage object path returned by the upload URL endpoint.
+    SessionUser:
+      type: object
+      required:
+        - id
+        - fullName
+        - gender
+        - dateOfBirth
+        - area
+        - bio
+        - photoPaths
+        - isVerified
+        - isAdmin
+        - verificationSelfieSubmitted
+        - wantsRelationship
+        - wantsFriendsWithBenefits
+        - wantsHookup
+        - premiumUntil
+        - hookupUntil
+      properties:
+        id:
+          type: string
+          format: uuid
+        fullName:
+          type: string
+        gender:
+          type: string
+          enum: [male, female]
+        dateOfBirth:
+          type: string
+          format: date
+        area:
+          type: string
+        bio:
+          type: string
+        photoPaths:
+          type: array
+          items:
+            type: string
+        isVerified:
+          type: boolean
+        isAdmin:
+          type: boolean
+        verificationSelfieSubmitted:
+          type: boolean
+        wantsRelationship:
+          type: boolean
+        wantsFriendsWithBenefits:
+          type: boolean
+        wantsHookup:
+          type: boolean
+        premiumUntil:
+          type: ["string", "null"]
+          format: date-time
+        hookupUntil:
+          type: ["string", "null"]
+          format: date-time
+    UploadUrlRequest:
+      type: object
+      additionalProperties: false
+      required: [name, size, contentType]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+        size:
+          type: integer
+          minimum: 1
+          maximum: 5242880
+        contentType:
+          type: string
+          enum: [image/jpeg, image/png, image/webp]
+    UploadUrlResponse:
+      type: object
+      required: [uploadURL, objectPath]
+      properties:
+        uploadURL:
+          type: string
+          format: uri
+        objectPath:
+          type: string
+    DiscoveryFeed:
+      type: object
+      required: [profiles]
+      properties:
+        profiles:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiscoveryProfile"
+    DiscoveryProfile:
+      type: object
+      required: [id, fullName, age, gender, area, bio, photoPath, isVerified]
+      properties:
+        id:
+          type: string
+          format: uuid
+        fullName:
+          type: string
+        age:
+          type: integer
+          minimum: 18
+        gender:
+          type: string
+          enum: [male, female]
+        area:
+          type: string
+        bio:
+          type: string
+        photoPath:
+          type: string
+        isVerified:
+          type: boolean
+    SwipeInput:
+      type: object
+      additionalProperties: false
+      required: [action]
+      properties:
+        action:
+          type: string
+          enum: [like, pass]
+    SwipeResult:
+      type: object
+      required: [action, matched]
+      properties:
+        action:
+          type: string
+          enum: [like, pass]
+        matched:
+          type: boolean
+        matchId:
+          type: ["string", "null"]
+          format: uuid
+    VerificationDecision:
+      type: object
+      additionalProperties: false
+      required: [isVerified]
+      properties:
+        isVerified:
+          type: boolean
+    FullProfile:
+      type: object
+      required: [id, fullName, age, gender, area, bio, photoPaths, isVerified]
+      properties:
+        id:
+          type: string
+          format: uuid
+        fullName:
+          type: string
+        age:
+          type: integer
+          minimum: 18
+        gender:
+          type: string
+          enum: [male, female]
+        area:
+          type: string
+        bio:
+          type: string
+        photoPaths:
+          type: array
+          items:
+            type: string
+        isVerified:
+          type: boolean
+    MatchSummary:
+      type: object
+      required: [id, profile, unreadCount]
+      properties:
+        id:
+          type: string
+          format: uuid
+        profile:
+          $ref: "#/components/schemas/DiscoveryProfile"
+        lastMessage:
+          type: ["string", "null"]
+        lastMessageAt:
+          type: ["string", "null"]
+          format: date-time
+        unreadCount:
+          type: integer
+          minimum: 0
+    MatchesResponse:
+      type: object
+      required: [matches]
+      properties:
+        matches:
+          type: array
+          items:
+            $ref: "#/components/schemas/MatchSummary"
+    Message:
+      type: object
+      required: [id, matchId, senderId, body, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        matchId:
+          type: string
+          format: uuid
+        senderId:
+          type: string
+          format: uuid
+        body:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+    MessageInput:
+      type: object
+      additionalProperties: false
+      required: [body]
+      properties:
+        body:
+          type: string
+          minLength: 1
+          maxLength: 2000
+    MessagesResponse:
+      type: object
+      required: [messages]
+      properties:
+        messages:
+          type: array
+          items:
+            $ref: "#/components/schemas/Message"
+    SearchResponse:
+      type: object
+      required: [category, profiles]
+      properties:
+        category:
+          type: string
+          enum: [relationship, friends-with-benefits, hookup]
+        profiles:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiscoveryProfile"
+    PlanStatus:
+      type: object
+      required: [isWoman, premiumActive, hookupActive, premiumUntil, hookupUntil, premiumDaysRemaining, hookupDaysRemaining]
+      properties:
+        isWoman:
+          type: boolean
+        premiumActive:
+          type: boolean
+        hookupActive:
+          type: boolean
+        premiumUntil:
+          type: ["string", "null"]
+          format: date-time
+        hookupUntil:
+          type: ["string", "null"]
+          format: date-time
+        premiumDaysRemaining:
+          type: integer
+          minimum: 0
+        hookupDaysRemaining:
+          type: integer
+          minimum: 0
+    InitializePaymentInput:
+      type: object
+      additionalProperties: false
+      required: [plan, email]
+      properties:
+        plan:
+          type: string
+          enum: [premium, hookup]
+        email:
+          type: string
+          format: email
+          maxLength: 254
+    PaymentCheckout:
+      type: object
+      required: [reference, plan, amountKobo, currency, publicKey]
+      properties:
+        reference:
+          type: string
+        plan:
+          type: string
+          enum: [premium, hookup]
+        amountKobo:
+          type: integer
+        currency:
+          type: string
+          enum: [NGN]
+        publicKey:
+          type: string
+    VerifyPaymentInput:
+      type: object
+      additionalProperties: false
+      required: [reference]
+      properties:
+        reference:
+          type: string
+          minLength: 8
+          maxLength: 100
+          pattern: "^[A-Za-z0-9.=\\-]+$"
+    PaymentVerification:
+      type: object
+      required: [reference, plan, status, premiumUntil, hookupUntil, premiumDaysRemaining, hookupDaysRemaining]
+      properties:
+        reference:
+          type: string
+        plan:
+          type: string
+          enum: [premium, hookup]
+        status:
+          type: string
+          enum: [success, pending, failed]
+        premiumUntil:
+          type: ["string", "null"]
+          format: date-time
+        hookupUntil:
+          type: ["string", "null"]
+          format: date-time
+        premiumDaysRemaining:
+          type: integer
+        hookupDaysRemaining:
+          type: integer
+    ReportInput:
+      type: object
+      additionalProperties: false
+      required: [targetUserId, reason]
+      properties:
+        targetUserId:
+          type: string
+          format: uuid
+        matchId:
+          type: string
+          format: uuid
+        reason:
+          type: string
+          enum: [fake_profile, harassment, scam, underage, other]
+        details:
+          type: string
+          maxLength: 500
+    ReportSubmission:
+      type: object
+      required: [id, status]
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [open]
+    BlockStatus:
+      type: object
+      required: [userId, blocked]
+      properties:
+        userId:
+          type: string
+          format: uuid
+        blocked:
+          type: boolean
+    AdminOverview:
+      type: object
+      required: [totalUsers, maleUsers, femaleUsers, activePremiumUsers, weeklyRevenueKobo]
+      properties:
+        totalUsers:
+          type: integer
+        maleUsers:
+          type: integer
+        femaleUsers:
+          type: integer
+        activePremiumUsers:
+          type: integer
+        weeklyRevenueKobo:
+          type: integer
+    AdminUser:
+      type: object
+      required: [id, identifier, fullName, gender, isAdmin, isBanned, isVerified, verificationSelfieSubmitted, verificationSelfiePath, createdAt, premiumUntil, hookupUntil]
+      properties:
+        id:
+          type: string
+          format: uuid
+        identifier:
+          type: string
+        fullName:
+          type: string
+        gender:
+          type: string
+          enum: [male, female]
+        isAdmin:
+          type: boolean
+        isBanned:
+          type: boolean
+        isVerified:
+          type: boolean
+        verificationSelfieSubmitted:
+          type: boolean
+        verificationSelfiePath:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+        premiumUntil:
+          type: ["string", "null"]
+          format: date-time
+        hookupUntil:
+          type: ["string", "null"]
+          format: date-time
+    AdminUsersResponse:
+      type: object
+      required: [users]
+      properties:
+        users:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdminUser"
+    AdminUserStatusInput:
+      type: object
+      additionalProperties: false
+      required: [isBanned]
+      properties:
+        isBanned:
+          type: boolean
+    AdminReport:
+      type: object
+      required: [id, reporterName, targetName, matchId, reason, details, status, adminNote, createdAt, resolvedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        reporterName:
+          type: ["string", "null"]
+        targetName:
+          type: ["string", "null"]
+        matchId:
+          type: ["string", "null"]
+          format: uuid
+        reason:
+          type: string
+          enum: [fake_profile, harassment, scam, underage, other]
+        details:
+          type: ["string", "null"]
+        status:
+          type: string
+          enum: [open, resolved]
+        adminNote:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+        resolvedAt:
+          type: ["string", "null"]
+          format: date-time
+    AdminReportsResponse:
+      type: object
+      required: [reports]
+      properties:
+        reports:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdminReport"
+    AdminReportUpdateInput:
+      type: object
+      additionalProperties: false
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [open, resolved]
+        adminNote:
+          type: string
+          maxLength: 500
+    AdminPayment:
+      type: object
+      required: [id, reference, userIdentifier, amountKobo, plan, status, createdAt, paidAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        reference:
+          type: string
+        userIdentifier:
+          type: ["string", "null"]
+        amountKobo:
+          type: integer
+        plan:
+          type: string
+          enum: [premium, hookup]
+        status:
+          type: string
+          enum: [pending, success, failed]
+        createdAt:
+          type: string
+          format: date-time
+        paidAt:
+          type: ["string", "null"]
+          format: date-time
+    AdminPaymentsResponse:
+      type: object
+      required: [payments]
+      properties:
+        payments:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdminPayment"

@@ -1,6 +1,6 @@
 kind = "web"
 previewPath = "/"
-title = "Confluence"
+title = "Orbit Zone"
 description = "A mobile-first dating web app for adults in Lokoja, Nigeria, with member profiles, discovery, matches, chat, premium plans, payments, and safety moderation."
 version = "1.0.0"
 id = "artifacts/confluence"
@@ -8,14 +8,14 @@ router = "path"
 
 [[services]]
 name = "web"
-paths = [ "/" ]
+paths = ["/"]
 localPort = 21372
 
 [services.development]
 run = "pnpm --filter @workspace/confluence run dev"
 
 [services.production]
-build = [ "pnpm", "--filter", "@workspace/confluence", "run", "build" ]
+build = ["pnpm", "--filter", "@workspace/confluence", "run", "build"]
 serve = "static"
 publicDir = "artifacts/confluence/dist/public"
 
