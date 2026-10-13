@@ -266,10 +266,13 @@ export const RequestUploadUrlResponse = zod.object({
 
 
 /**
- * Returns opposite-gender profiles in Lokoja, excluding banned, blocked, and previously swiped accounts. Men see women who selected Relationship or Friends with Benefits.
+ * Returns opposite-gender profiles in Lokoja, excluding banned, blocked, and previously swiped accounts. Men see women who selected Relationship or Friends with Benefits. Free men receive five likes in each rolling 48-hour window.
  * @summary Get profiles the current member has not already passed or liked
  */
 export const getDiscoveryFeedResponseProfilesItemAgeMin = 18;
+
+
+export const getDiscoveryFeedResponseFreeLikeQuotaOneRemainingMin = 0;
 
 
 
@@ -283,11 +286,17 @@ export const GetDiscoveryFeedResponse = zod.object({
   "bio": zod.string(),
   "photoPath": zod.string(),
   "isVerified": zod.boolean()
-}))
+})),
+  "freeLikeQuota": zod.union([zod.object({
+  "limit": zod.number().int().min(1),
+  "remaining": zod.number().int().min(getDiscoveryFeedResponseFreeLikeQuotaOneRemainingMin),
+  "resetsAt": zod.coerce.date().nullable()
+}),zod.null()])
 })
 
 
 /**
+ * Free men may record up to five likes in a rolling 48-hour window. A mutual like can create a visible match, but chat remains Premium-only.
  * @summary Like or pass on a profile
  */
 export const RecordSwipeParams = zod.object({
@@ -330,7 +339,7 @@ export const GetFullProfileResponse = zod.object({
 
 
 /**
- * Men need active Premium. Women can use matching for free.
+ * Women and men can view mutual matches for free. Men need active Premium to read or send chat messages and view full profiles.
  * @summary List the current user's matches
  */
 export const getMatchesResponseMatchesItemProfileAgeMin = 18;

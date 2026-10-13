@@ -13,6 +13,13 @@ export interface ErrorEnvelope {
   error: string;
 }
 
+export interface FreeLikeLimitError {
+  error: string;
+  /** @minimum 1 */
+  limit: number;
+  resetsAt: string;
+}
+
 export type RegistrationInputGender = typeof RegistrationInputGender[keyof typeof RegistrationInputGender];
 
 
@@ -185,8 +192,18 @@ export interface DiscoveryProfile {
   isVerified: boolean;
 }
 
+export interface FreeLikeQuota {
+  /** @minimum 1 */
+  limit: number;
+  /** @minimum 0 */
+  remaining: number;
+  /** @nullable */
+  resetsAt: string | null;
+}
+
 export interface DiscoveryFeed {
   profiles: DiscoveryProfile[];
+  freeLikeQuota: FreeLikeQuota | null;
 }
 
 export type SwipeInputAction = typeof SwipeInputAction[keyof typeof SwipeInputAction];

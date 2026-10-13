@@ -127,8 +127,11 @@ router.get(
   },
 );
 
-router.get("/matches", requireUser, requirePremiumForMen, async (req, res): Promise<void> => {
+router.get("/matches", requireUser, async (req, res): Promise<void> => {
   const user = req.currentUser!;
+  const canViewChat =
+    user.gender === "female" ||
+    Boolean(user.premiumUntil && user.premiumUntil.getTime() > Date.now());
   const matches = await db
     .select()
     .from(matchesTable)
@@ -153,26 +156,30 @@ router.get("/matches", requireUser, requirePremiumForMen, async (req, res): Prom
       .limit(1);
     if (!profile) continue;
 
-    const [lastMessage] = await db
-      .select()
-      .from(messagesTable)
-      .where(eq(messagesTable.matchId, match.id))
-      .orderBy(desc(messagesTable.createdAt))
-      .limit(1);
+    const [lastMessage] = canViewChat
+      ? await db
+          .select()
+          .from(messagesTable)
+          .where(eq(messagesTable.matchId, match.id))
+          .orderBy(desc(messagesTable.createdAt))
+          .limit(1)
+      : [];
     const readAt =
       match.userOneId === user.id
         ? match.userOneLastReadAt
         : match.userTwoLastReadAt;
-    const [unread] = await db
-      .select({ value: count() })
-      .from(messagesTable)
-      .where(
-        and(
-          eq(messagesTable.matchId, match.id),
-          not(eq(messagesTable.senderId, user.id)),
-          gt(messagesTable.createdAt, readAt ?? new Date(0)),
-        ),
-      );
+    const [unread] = canViewChat
+      ? await db
+          .select({ value: count() })
+          .from(messagesTable)
+          .where(
+            and(
+              eq(messagesTable.matchId, match.id),
+              not(eq(messagesTable.senderId, user.id)),
+              gt(messagesTable.createdAt, readAt ?? new Date(0)),
+            ),
+          )
+      : [];
 
     result.push({
       id: match.id,
@@ -182,13 +189,15 @@ router.get("/matches", requireUser, requirePremiumForMen, async (req, res): Prom
         age: ageOnDate(profile.dateOfBirth),
         gender: profile.gender,
         area: profile.area,
-        bio: profile.bio,
+        bio: canViewChat ? profile.bio : "",
         photoPath: profile.photoPaths[0] ?? "",
         isVerified: profile.isVerified,
       },
-      lastMessage: lastMessage?.body ?? null,
-      lastMessageAt: lastMessage?.createdAt.toISOString() ?? null,
-      unreadCount: Number(unread?.value ?? 0),
+      lastMessage: canViewChat ? (lastMessage?.body ?? null) : null,
+      lastMessageAt: canViewChat
+        ? (lastMessage?.createdAt.toISOString() ?? null)
+        : null,
+      unreadCount: canViewChat ? Number(unread?.value ?? 0) : 0,
     });
   }
 

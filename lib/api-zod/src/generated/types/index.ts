@@ -26,6 +26,8 @@ export * from './discoveryFeed';
 export * from './discoveryProfile';
 export * from './discoveryProfileGender';
 export * from './errorEnvelope';
+export * from './freeLikeLimitError';
+export * from './freeLikeQuota';
 export * from './fullProfile';
 export * from './fullProfileGender';
 export * from './getAdminReportsParams';

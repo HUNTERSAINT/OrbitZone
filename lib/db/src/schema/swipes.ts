@@ -28,6 +28,7 @@ export const swipesTable = pgTable(
   (table) => [
     uniqueIndex("swipes_from_to_unique").on(table.fromUserId, table.toUserId),
     index("swipes_to_user_idx").on(table.toUserId),
+    index("swipes_like_quota_idx").on(table.fromUserId, table.action, table.createdAt),
     check("swipes_no_self_swipe", sql`${table.fromUserId} <> ${table.toUserId}`),
   ],
 );

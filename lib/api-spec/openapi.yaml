@@ -270,7 +270,7 @@ paths:
       operationId: getDiscoveryFeed
       tags: [Discovery]
       summary: Get profiles the current member has not already passed or liked
-      description: Returns opposite-gender profiles in Lokoja, excluding banned, blocked, and previously swiped accounts. Men see women who selected Relationship or Friends with Benefits.
+      description: Returns opposite-gender profiles in Lokoja, excluding banned, blocked, and previously swiped accounts. Men see women who selected Relationship or Friends with Benefits. Free men receive five likes in each rolling 48-hour window.
       responses:
         "200":
           description: Current discovery cards.
@@ -289,6 +289,7 @@ paths:
       operationId: recordSwipe
       tags: [Discovery]
       summary: Like or pass on a profile
+      description: Free men may record up to five likes in a rolling 48-hour window. A mutual like can create a visible match, but chat remains Premium-only.
       parameters:
         - name: profileId
           in: path
@@ -321,6 +322,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorEnvelope"
+        "403":
+          description: The current free-like allowance has been used.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FreeLikeLimitError"
         "404":
           description: Profile is not available for discovery.
           content:
@@ -376,7 +383,7 @@ paths:
       operationId: getMatches
       tags: [Matches]
       summary: List the current user's matches
-      description: Men need active Premium. Women can use matching for free.
+      description: Women and men can view mutual matches for free. Men need active Premium to read or send chat messages and view full profiles.
       responses:
         "200":
           description: Matches ordered by recent activity.
@@ -386,12 +393,6 @@ paths:
                 $ref: "#/components/schemas/MatchesResponse"
         "401":
           description: Authentication required.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorEnvelope"
-        "403":
-          description: Premium access required.
           content:
             application/json:
               schema:
@@ -1034,6 +1035,18 @@ components:
       properties:
         error:
           type: string
+    FreeLikeLimitError:
+      type: object
+      required: [error, limit, resetsAt]
+      properties:
+        error:
+          type: string
+        limit:
+          type: integer
+          minimum: 1
+        resetsAt:
+          type: string
+          format: date-time
     RegistrationInput:
       type: object
       additionalProperties: false
@@ -1234,12 +1247,29 @@ components:
           type: string
     DiscoveryFeed:
       type: object
-      required: [profiles]
+      required: [profiles, freeLikeQuota]
       properties:
         profiles:
           type: array
           items:
             $ref: "#/components/schemas/DiscoveryProfile"
+        freeLikeQuota:
+          oneOf:
+            - $ref: "#/components/schemas/FreeLikeQuota"
+            - type: "null"
+    FreeLikeQuota:
+      type: object
+      required: [limit, remaining, resetsAt]
+      properties:
+        limit:
+          type: integer
+          minimum: 1
+        remaining:
+          type: integer
+          minimum: 0
+        resetsAt:
+          type: ["string", "null"]
+          format: date-time
     DiscoveryProfile:
       type: object
       required: [id, fullName, age, gender, area, bio, photoPath, isVerified]

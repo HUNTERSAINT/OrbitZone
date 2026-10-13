@@ -1,6 +1,6 @@
 import { useRef, useState, type PointerEvent } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { useGetCurrentUser, getGetCurrentUserQueryKey, useGetDiscoveryFeed, getGetDiscoveryFeedQueryKey, useRecordSwipe } from '@workspace/api-client-react';
+import { useGetCurrentUser, getGetCurrentUserQueryKey, useGetDiscoveryFeed, getGetDiscoveryFeedQueryKey, useGetMyPlan, getGetMyPlanQueryKey, useRecordSwipe } from '@workspace/api-client-react';
 import type { DiscoveryProfile, SwipeInput } from '@workspace/api-client-react';
 import { ArrowRight, Check, CircleAlert, Heart, LoaderCircle, MapPin, RefreshCw, ShieldCheck, X } from 'lucide-react';
 import { Link } from 'wouter';
@@ -12,6 +12,10 @@ export default function DiscoverPage() {
   const client = useQueryClient();
   const current = useGetCurrentUser({
     query: { queryKey: getGetCurrentUserQueryKey(), retry: false },
+    request: { credentials: 'include' },
+  });
+  const plan = useGetMyPlan({
+    query: { queryKey: getGetMyPlanQueryKey(), retry: false, enabled: !!current.data },
     request: { credentials: 'include' },
   });
   const feed = useGetDiscoveryFeed({
@@ -28,8 +32,16 @@ export default function DiscoverPage() {
 
   const visibleProfiles = (feed.data?.profiles ?? []).filter((person) => !dismissed.has(person.id));
   const activeProfile = visibleProfiles[0];
+  const likeQuota = feed.data?.freeLikeQuota ?? null;
+  const likeLimitReached = !!likeQuota && likeQuota.remaining <= 0;
+  const canChat = current.data?.gender === 'female' || !!plan.data?.premiumActive;
 
   async function choose(action: SwipeChoice, person: DiscoveryProfile) {
+    if (action === 'like' && likeLimitReached) {
+      setDragX(0);
+      setError('You have used all five free likes in this 48-hour window. Upgrade to Premium or wait for your next free like.');
+      return;
+    }
     if (swipe.isPending) return;
     setError('');
     setSwipingId(person.id);
@@ -108,6 +120,12 @@ export default function DiscoverPage() {
         <span className="discover-count" data-testid="text-discover-count">{feed.isLoading ? 'Loading people' : `${visibleProfiles.length} ${visibleProfiles.length === 1 ? 'person' : 'people'} nearby`}</span>
       </div>
     </div>
+    {likeQuota && <div className="upgrade-notice" role="status" data-testid="status-free-like-quota" style={{ marginTop: 0, marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+      <div><strong>{likeQuota.remaining} of {likeQuota.limit} free likes remaining.</strong><div>Each free like refreshes 48 hours after you use it.</div>
+        {likeQuota.remaining === 0 && likeQuota.resetsAt && <div>Next free like: {new Date(likeQuota.resetsAt).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}.</div>}
+      </div>
+      {likeQuota.remaining === 0 && <Link href="/plan" className="btn btn-outline" data-testid="link-upgrade-free-likes">Upgrade to Premium <ArrowRight size={15} /></Link>}
+    </div>}
     <div className="discover-layout">
       <section className="discover-stage" aria-label="People to discover">
         {error && <div className="inline-error discover-error" role="alert" data-testid="status-discover-error"><CircleAlert size={16} />{error}</div>}
@@ -124,7 +142,7 @@ export default function DiscoverPage() {
           <div className="state-icon"><Heart size={21} fill="currentColor" /></div>
           <h2>A mutual hello.</h2>
           <p>You and <strong data-testid={`text-match-name-${lastMatch.profile.id}`}>{lastMatch.profile.fullName}</strong> like each other. That’s a lovely start.</p>
-          {lastMatch.matchId && <Link href={`/chat/${lastMatch.matchId}`} className="btn btn-primary">Say hello <ArrowRight size={16} /></Link>}
+          {lastMatch.matchId && <Link href={canChat ? `/chat/${lastMatch.matchId}` : '/plan'} className="btn btn-primary" data-testid="link-match-next-step">{canChat ? <>Say hello <ArrowRight size={16} /></> : <>Upgrade to chat <ArrowRight size={16} /></>}</Link>}
           <button type="button" className="btn btn-outline" onClick={() => setLastMatch(null)} data-testid="button-continue-discovery">Keep discovering <ArrowRight size={16} /></button>
         </div>}
         {!feed.isLoading && !feed.isError && !lastMatch && !activeProfile && <div className="discover-state" data-testid="state-discover-empty">
@@ -159,8 +177,8 @@ export default function DiscoverPage() {
             <button type="button" className="swipe-action swipe-pass" onClick={() => void choose('pass', activeProfile)} disabled={swipe.isPending} data-testid={`button-pass-${activeProfile.id}`}>
               {swipe.isPending && swipingId === activeProfile.id ? <LoaderCircle className="spin" size={17} /> : <X size={18} />} Pass
             </button>
-            <button type="button" className="swipe-action swipe-like" onClick={() => void choose('like', activeProfile)} disabled={swipe.isPending} data-testid={`button-like-${activeProfile.id}`}>
-              {swipe.isPending && swipingId === activeProfile.id ? <LoaderCircle className="spin" size={17} /> : <Heart size={17} />} Like
+            <button type="button" className="swipe-action swipe-like" onClick={() => void choose('like', activeProfile)} disabled={swipe.isPending || likeLimitReached} data-testid={`button-like-${activeProfile.id}`}>
+              {swipe.isPending && swipingId === activeProfile.id ? <LoaderCircle className="spin" size={17} /> : <Heart size={17} />} {likeLimitReached ? 'No likes left' : 'Like'}
             </button>
           </div>
           <p className="swipe-hint" aria-hidden="true">Swipe right to like · left to pass</p>

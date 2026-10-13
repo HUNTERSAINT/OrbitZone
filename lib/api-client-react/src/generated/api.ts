@@ -31,6 +31,7 @@ import type {
   BlockStatus,
   DiscoveryFeed,
   ErrorEnvelope,
+  FreeLikeLimitError,
   FullProfile,
   GetAdminReportsParams,
   GetAdminUsersParams,
@@ -918,7 +919,7 @@ export const getGetDiscoveryFeedUrl = () => {
 }
 
 /**
- * Returns opposite-gender profiles in Lokoja, excluding banned, blocked, and previously swiped accounts. Men see women who selected Relationship or Friends with Benefits.
+ * Returns opposite-gender profiles in Lokoja, excluding banned, blocked, and previously swiped accounts. Men see women who selected Relationship or Friends with Benefits. Free men receive five likes in each rolling 48-hour window.
  * @summary Get profiles the current member has not already passed or liked
  */
 export const getDiscoveryFeed = async ( options?: Parameters<typeof customFetch>[1]): Promise<DiscoveryFeed> => {
@@ -996,6 +997,7 @@ export const getRecordSwipeUrl = (profileId: string,) => {
 }
 
 /**
+ * Free men may record up to five likes in a rolling 48-hour window. A mutual like can create a visible match, but chat remains Premium-only.
  * @summary Like or pass on a profile
  */
 export const recordSwipe = async (profileId: string,
@@ -1030,7 +1032,7 @@ return customFetch<SwipeResult>(getRecordSwipeUrl(profileId),
 
 export const getRecordSwipeMutationKey = () => ['recordSwipe'] as const;
 
-export const getRecordSwipeMutationOptions = <TError = ErrorType<ErrorEnvelope>,
+export const getRecordSwipeMutationOptions = <TError = ErrorType<ErrorEnvelope | FreeLikeLimitError>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordSwipe>>, TError,RecordSwipeMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof recordSwipe>>, TError,RecordSwipeMutationVariables, TContext> => {
 
@@ -1059,13 +1061,13 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type RecordSwipeMutationResult = NonNullable<Awaited<ReturnType<typeof recordSwipe>>>
     export type RecordSwipeMutationBody = BodyType<SwipeInput>
-    export type RecordSwipeMutationError = ErrorType<ErrorEnvelope>
+    export type RecordSwipeMutationError = ErrorType<ErrorEnvelope | FreeLikeLimitError>
     export type RecordSwipeMutationVariables = {profileId: string;data: BodyType<SwipeInput>}
 
     /**
  * @summary Like or pass on a profile
  */
-export const useRecordSwipe = <TError = ErrorType<ErrorEnvelope>,
+export const useRecordSwipe = <TError = ErrorType<ErrorEnvelope | FreeLikeLimitError>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordSwipe>>, TError,RecordSwipeMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof recordSwipe>>,
@@ -1163,7 +1165,7 @@ export const getGetMatchesUrl = () => {
 }
 
 /**
- * Men need active Premium. Women can use matching for free.
+ * Women and men can view mutual matches for free. Men need active Premium to read or send chat messages and view full profiles.
  * @summary List the current user's matches
  */
 export const getMatches = async ( options?: Parameters<typeof customFetch>[1]): Promise<MatchesResponse> => {

@@ -1,4 +1,4 @@
-import { and, eq, notExists, or, sql } from "drizzle-orm";
+import { and, count, eq, gte, min, notExists, or, sql } from "drizzle-orm";
 import { Router, type IRouter, type RequestHandler } from "express";
 import rateLimit from "express-rate-limit";
 import {
@@ -10,16 +10,16 @@ import {
 } from "@workspace/db";
 import {
   GetDiscoveryFeedResponse,
+  FreeLikeLimitError,
   RecordSwipeBody,
   RecordSwipeParams,
   RecordSwipeResponse,
 } from "@workspace/api-zod";
-import {
-  requirePremiumForMen,
-  requireUser,
-} from "../middlewares/require-auth";
+import { requireUser } from "../middlewares/require-auth";
 
 const router: IRouter = Router();
+const FREE_LIKE_LIMIT = 5;
+const FREE_LIKE_WINDOW_MS = 48 * 60 * 60 * 1000;
 const swipeLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 60,
@@ -27,14 +27,33 @@ const swipeLimiter = rateLimit({
   legacyHeaders: false,
   message: { error: "Too many swipe actions. Try again later." },
 });
-const requirePremiumToLike: RequestHandler = (req, res, next) => {
-  const body = RecordSwipeBody.safeParse(req.body);
-  if (!body.success || body.data.action !== "like") {
-    next();
-    return;
-  }
-  requirePremiumForMen(req, res, next);
-};
+
+async function getFreeLikeQuota(userId: string) {
+  const since = new Date(Date.now() - FREE_LIKE_WINDOW_MS);
+  const [usage] = await db
+    .select({
+      used: count(),
+      earliestLikeAt: min(swipesTable.createdAt),
+    })
+    .from(swipesTable)
+    .where(
+      and(
+        eq(swipesTable.fromUserId, userId),
+        eq(swipesTable.action, "like"),
+        gte(swipesTable.createdAt, since),
+      ),
+    );
+  const used = Number(usage?.used ?? 0);
+  const resetsAt =
+    used >= FREE_LIKE_LIMIT && usage?.earliestLikeAt
+      ? new Date(usage.earliestLikeAt.getTime() + FREE_LIKE_WINDOW_MS).toISOString()
+      : null;
+  return {
+    limit: FREE_LIKE_LIMIT,
+    remaining: Math.max(0, FREE_LIKE_LIMIT - used),
+    resetsAt,
+  };
+}
 
 function ageOnDate(dateOfBirth: string): number {
   const [year, month, day] = dateOfBirth.split("-").map(Number);
@@ -114,8 +133,15 @@ router.get("/feed", requireUser, async (req, res): Promise<void> => {
     .orderBy(sql`random()`)
     .limit(20);
 
+  const freeLikeQuota =
+    viewer.gender === "male" &&
+    (!viewer.premiumUntil || viewer.premiumUntil.getTime() <= Date.now())
+      ? await getFreeLikeQuota(viewer.id)
+      : null;
+
   res.json(
     GetDiscoveryFeedResponse.parse({
+      freeLikeQuota,
       profiles: profiles.map((profile) => ({
         id: profile.id,
         fullName: profile.fullName,
@@ -134,7 +160,6 @@ router.post(
   "/swipes/:profileId",
   requireUser,
   swipeLimiter,
-  requirePremiumToLike,
   async (req, res): Promise<void> => {
     const params = RecordSwipeParams.safeParse(req.params);
     const body = RecordSwipeBody.safeParse(req.body);
@@ -197,32 +222,21 @@ router.post(
       return;
     }
 
-    const existingSwipe = await db
-      .select()
-      .from(swipesTable)
-      .where(
-        and(
-          eq(swipesTable.fromUserId, viewer.id),
-          eq(swipesTable.toUserId, profile.id),
-        ),
-      )
-      .limit(1);
-    if (existingSwipe[0] && existingSwipe[0].action !== body.data.action) {
-      res.status(409).json({ error: "A different swipe was already recorded." });
-      return;
-    }
+    const result = await db.transaction(async (tx) => {
+      let premiumActive = false;
+      if (body.data.action === "like" && viewer.gender === "male") {
+        const [account] = await tx
+          .select({ premiumUntil: usersTable.premiumUntil })
+          .from(usersTable)
+          .where(eq(usersTable.id, viewer.id))
+          .for("update")
+          .limit(1);
+        premiumActive = Boolean(
+          account?.premiumUntil && account.premiumUntil.getTime() > Date.now(),
+        );
+      }
 
-    if (!existingSwipe[0]) {
-      await db
-        .insert(swipesTable)
-        .values({
-          fromUserId: viewer.id,
-          toUserId: profile.id,
-          action: body.data.action,
-        })
-        .onConflictDoNothing();
-
-      const [recordedSwipe] = await db
+      const [existingSwipe] = await tx
         .select({ action: swipesTable.action })
         .from(swipesTable)
         .where(
@@ -232,55 +246,126 @@ router.post(
           ),
         )
         .limit(1);
-      if (recordedSwipe && recordedSwipe.action !== body.data.action) {
-        res.status(409).json({ error: "A different swipe was already recorded." });
-        return;
+      if (existingSwipe && existingSwipe.action !== body.data.action) {
+        return { kind: "conflict" as const };
       }
-    }
 
-    let matched = false;
-    let matchId: string | null = null;
-    if (body.data.action === "like") {
-      const [reciprocalLike] = await db
-        .select({ id: swipesTable.id })
-        .from(swipesTable)
-        .where(
-          and(
-            eq(swipesTable.fromUserId, profile.id),
-            eq(swipesTable.toUserId, viewer.id),
-            eq(swipesTable.action, "like"),
-          ),
-        )
-        .limit(1);
+      if (!existingSwipe) {
+        if (
+          body.data.action === "like" &&
+          viewer.gender === "male" &&
+          !premiumActive
+        ) {
+          const since = new Date(Date.now() - FREE_LIKE_WINDOW_MS);
+          const [usage] = await tx
+            .select({
+              used: count(),
+              earliestLikeAt: min(swipesTable.createdAt),
+            })
+            .from(swipesTable)
+            .where(
+              and(
+                eq(swipesTable.fromUserId, viewer.id),
+                eq(swipesTable.action, "like"),
+                gte(swipesTable.createdAt, since),
+              ),
+            );
+          const used = Number(usage?.used ?? 0);
+          if (used >= FREE_LIKE_LIMIT) {
+            const resetsAt = usage?.earliestLikeAt
+              ? new Date(
+                  usage.earliestLikeAt.getTime() + FREE_LIKE_WINDOW_MS,
+                ).toISOString()
+              : new Date(Date.now() + FREE_LIKE_WINDOW_MS).toISOString();
+            return { kind: "limit" as const, resetsAt };
+          }
+        }
 
-      if (reciprocalLike) {
-        const [userOneId, userTwoId] = canonicalPair(viewer.id, profile.id);
-        await db
-          .insert(matchesTable)
-          .values({ userOneId, userTwoId })
+        await tx
+          .insert(swipesTable)
+          .values({
+            fromUserId: viewer.id,
+            toUserId: profile.id,
+            action: body.data.action,
+          })
           .onConflictDoNothing();
-        const [match] = await db
-          .select({ id: matchesTable.id })
-          .from(matchesTable)
+
+        const [recordedSwipe] = await tx
+          .select({ action: swipesTable.action })
+          .from(swipesTable)
           .where(
             and(
-              eq(matchesTable.userOneId, userOneId),
-              eq(matchesTable.userTwoId, userTwoId),
+              eq(swipesTable.fromUserId, viewer.id),
+              eq(swipesTable.toUserId, profile.id),
             ),
           )
           .limit(1);
-        if (match) {
-          matched = true;
-          matchId = match.id;
+        if (recordedSwipe && recordedSwipe.action !== body.data.action) {
+          return { kind: "conflict" as const };
         }
       }
+
+      let matched = false;
+      let matchId: string | null = null;
+      if (body.data.action === "like") {
+        const [reciprocalLike] = await tx
+          .select({ id: swipesTable.id })
+          .from(swipesTable)
+          .where(
+            and(
+              eq(swipesTable.fromUserId, profile.id),
+              eq(swipesTable.toUserId, viewer.id),
+              eq(swipesTable.action, "like"),
+            ),
+          )
+          .limit(1);
+
+        if (reciprocalLike) {
+          const [userOneId, userTwoId] = canonicalPair(viewer.id, profile.id);
+          await tx
+            .insert(matchesTable)
+            .values({ userOneId, userTwoId })
+            .onConflictDoNothing();
+          const [match] = await tx
+            .select({ id: matchesTable.id })
+            .from(matchesTable)
+            .where(
+              and(
+                eq(matchesTable.userOneId, userOneId),
+                eq(matchesTable.userTwoId, userTwoId),
+              ),
+            )
+            .limit(1);
+          if (match) {
+            matched = true;
+            matchId = match.id;
+          }
+        }
+      }
+
+      return { kind: "ok" as const, matched, matchId };
+    });
+
+    if (result.kind === "conflict") {
+      res.status(409).json({ error: "A different swipe was already recorded." });
+      return;
+    }
+    if (result.kind === "limit") {
+      res.status(403).json(
+        FreeLikeLimitError.parse({
+          error: "Your five free likes have been used. Upgrade to Premium or wait for the next like to reset.",
+          limit: FREE_LIKE_LIMIT,
+          resetsAt: result.resetsAt,
+        }),
+      );
+      return;
     }
 
     res.json(
       RecordSwipeResponse.parse({
         action: body.data.action,
-        matched,
-        matchId,
+        matched: result.matched,
+        matchId: result.matchId,
       }),
     );
   },

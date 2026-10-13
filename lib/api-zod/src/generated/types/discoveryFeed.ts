@@ -6,7 +6,9 @@
  * OpenAPI spec version: 0.2.0
  */
 import type { DiscoveryProfile } from './discoveryProfile';
+import type { FreeLikeQuota } from './freeLikeQuota';
 
 export interface DiscoveryFeed {
   profiles: DiscoveryProfile[];
+  freeLikeQuota: FreeLikeQuota | null;
 }
