@@ -4,7 +4,7 @@ Orbit Zone is an adults-only, mobile-first dating app for Lokoja residents: **Wh
 
 ## Run in Replit
 
-The workspace uses pnpm and has separate web and API workflows. Install packages with `pnpm install`, apply the development schema with `pnpm --filter @workspace/db run push`, then start the `artifacts/api-server: API Server` and `artifacts/confluence: web` workflows. The API health check is available at `/api/healthz`.
+The workspace uses pnpm and has separate web and API workflows. Install packages with `pnpm install`, apply the development schema with `pnpm --filter @workspace/db run push`, then start the configured API Server and Orbit Zone web workflows. The API health check is available at `/api/healthz`.
 
 ## Environment and secrets
 
