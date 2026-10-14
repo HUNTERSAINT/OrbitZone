@@ -10,10 +10,10 @@ import {
 } from "@workspace/db";
 import {
   GetDiscoveryFeedResponse,
-  FreeLikeLimitError,
   RecordSwipeBody,
   RecordSwipeParams,
   RecordSwipeResponse,
+  type FreeLikeLimitError,
 } from "@workspace/api-zod";
 import { requireUser } from "../middlewares/require-auth";
 
@@ -351,13 +351,17 @@ router.post(
       return;
     }
     if (result.kind === "limit") {
-      res.status(403).json(
-        FreeLikeLimitError.parse({
-          error: "Your five free likes have been used. Upgrade to Premium or wait for the next like to reset.",
-          limit: FREE_LIKE_LIMIT,
-          resetsAt: result.resetsAt,
-        }),
-      );
+      if (!result.resetsAt) {
+        res.status(500).json({ error: "Unable to calculate the like reset time." });
+        return;
+      }
+      const limitError: FreeLikeLimitError = {
+        error:
+          "Your five free likes have been used. Upgrade to Premium or wait for the next like to reset.",
+        limit: FREE_LIKE_LIMIT,
+        resetsAt: new Date(result.resetsAt),
+      };
+      res.status(403).json(limitError);
       return;
     }
 

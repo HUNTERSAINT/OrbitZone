@@ -7,8 +7,20 @@ import {
   setObjectAclPolicy,
   type ObjectAclPolicy,
 } from "./objectAcl";
+import {
+  ObjectNotFoundError,
+  ObjectOwnershipError,
+} from "./objectStorageErrors";
+import {
+  isRailwayStoredObject,
+  RailwayObjectStorage,
+  type RailwayStoredObject,
+} from "./railwayObjectStorage";
 
 const SIDECAR = "http://127.0.0.1:1106";
+const railwayObjectStorage = new RailwayObjectStorage();
+
+export { ObjectNotFoundError, ObjectOwnershipError };
 
 export const objectStorageClient = new Storage({
   credentials: {
@@ -25,19 +37,7 @@ export const objectStorageClient = new Storage({
   projectId: "",
 });
 
-export class ObjectNotFoundError extends Error {
-  constructor() {
-    super("Object not found.");
-    this.name = "ObjectNotFoundError";
-  }
-}
-
-export class ObjectOwnershipError extends Error {
-  constructor() {
-    super("The uploaded image is already owned by another account.");
-    this.name = "ObjectOwnershipError";
-  }
-}
+type StoredObject = File | RailwayStoredObject;
 
 export class ObjectStorageService {
   private getPrivateObjectDir(): string {
@@ -48,9 +48,22 @@ export class ObjectStorageService {
     return dir.replace(/\/+$/, "");
   }
 
-  async createUpload(): Promise<{ uploadURL: string; objectPath: string }> {
+  async createUpload(
+    contentType = "application/octet-stream",
+  ): Promise<{ uploadURL: string; objectPath: string }> {
     const objectId = randomUUID();
     const objectPath = `/objects/uploads/${objectId}`;
+
+    if (railwayObjectStorage.enabled) {
+      return {
+        uploadURL: await railwayObjectStorage.createUpload(
+          objectPath,
+          contentType,
+        ),
+        objectPath,
+      };
+    }
+
     const { bucketName, objectName } = this.parseObjectPath(
       `${this.getPrivateObjectDir()}/uploads/${objectId}`,
     );
@@ -63,9 +76,13 @@ export class ObjectStorageService {
     return { uploadURL, objectPath };
   }
 
-  async getObjectEntityFile(objectPath: string): Promise<File> {
+  async getObjectEntityFile(objectPath: string): Promise<StoredObject> {
     if (!/^\/objects\/uploads\/[0-9a-f-]{36}$/i.test(objectPath)) {
       throw new ObjectNotFoundError();
+    }
+
+    if (railwayObjectStorage.enabled) {
+      return railwayObjectStorage.getObject(objectPath);
     }
 
     const entityId = objectPath.slice("/objects/".length);
@@ -85,18 +102,27 @@ export class ObjectStorageService {
     owner: string,
     visibility: ObjectAclPolicy["visibility"],
   ): Promise<void> {
-    const file = await this.getObjectEntityFile(objectPath);
-    const current = await getObjectAclPolicy(file);
+    const object = await this.getObjectEntityFile(objectPath);
+    if (isRailwayStoredObject(object)) {
+      await railwayObjectStorage.claimObject(object, owner, visibility);
+      return;
+    }
+
+    const current = await getObjectAclPolicy(object);
     if (current && current.owner !== owner) {
       throw new ObjectOwnershipError();
     }
-    await setObjectAclPolicy(file, { owner, visibility });
+    await setObjectAclPolicy(object, { owner, visibility });
   }
 
   async deleteObject(objectPath: string): Promise<void> {
     try {
-      const file = await this.getObjectEntityFile(objectPath);
-      await file.delete({ ignoreNotFound: true });
+      const object = await this.getObjectEntityFile(objectPath);
+      if (isRailwayStoredObject(object)) {
+        await railwayObjectStorage.deleteObject(object);
+      } else {
+        await object.delete({ ignoreNotFound: true });
+      }
     } catch (error) {
       if (!(error instanceof ObjectNotFoundError)) {
         throw error;
@@ -104,9 +130,13 @@ export class ObjectStorageService {
     }
   }
 
-  async downloadObject(file: File): Promise<Response> {
-    const [metadata] = await file.getMetadata();
-    const stream = Readable.toWeb(file.createReadStream()) as ReadableStream;
+  async downloadObject(object: StoredObject): Promise<Response> {
+    if (isRailwayStoredObject(object)) {
+      return railwayObjectStorage.downloadObject(object);
+    }
+
+    const [metadata] = await object.getMetadata();
+    const stream = Readable.toWeb(object.createReadStream()) as ReadableStream;
     const headers = new Headers({
       "Content-Type": String(metadata.contentType || "application/octet-stream"),
       "Cache-Control": "private, no-store",
@@ -118,8 +148,11 @@ export class ObjectStorageService {
     return new Response(stream, { headers });
   }
 
-  async canAccess(userId: string, file: File): Promise<boolean> {
-    return canAccessObject(userId, file);
+  async canAccess(userId: string, object: StoredObject): Promise<boolean> {
+    if (isRailwayStoredObject(object)) {
+      return railwayObjectStorage.canAccess(userId, object);
+    }
+    return canAccessObject(userId, object);
   }
 
   private parseObjectPath(path: string): {

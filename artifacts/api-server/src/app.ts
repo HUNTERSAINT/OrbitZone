@@ -1,6 +1,7 @@
 import express, { type Express } from "express";
 import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
+import { resolve } from "node:path";
 import pinoHttp from "pino-http";
 import { pool } from "@workspace/db";
 import router from "./routes";
@@ -65,6 +66,26 @@ export const sessionMiddleware = session({
 app.use(sessionMiddleware);
 
 app.use("/api", router);
+
+if (process.env.SERVE_WEB_APP === "true") {
+  const webRoot = resolve(process.cwd(), "artifacts/confluence/dist/public");
+  app.use(express.static(webRoot, { index: false }));
+  app.get("/{*splat}", (req, res, next) => {
+    if (
+      req.path === "/api" ||
+      req.path.startsWith("/api/") ||
+      req.path.startsWith("/assets/") ||
+      req.path.startsWith("/socket.io")
+    ) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+
+    res.sendFile(resolve(webRoot, "index.html"), (error) => {
+      if (error) next(error);
+    });
+  });
+}
 
 app.use(
   (

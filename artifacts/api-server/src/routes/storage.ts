@@ -32,7 +32,7 @@ router.post(
     }
 
     try {
-      const upload = await storage.createUpload();
+      const upload = await storage.createUpload(parsed.data.contentType);
       res.json(RequestUploadUrlResponse.parse(upload));
     } catch (error) {
       req.log.error({ err: error }, "Unable to create photo upload URL");
