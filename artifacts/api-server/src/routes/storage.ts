@@ -1,5 +1,5 @@
 import { Readable } from "node:stream";
-import { Router, type IRouter } from "express";
+import { raw, Router, type IRouter } from "express";
 import rateLimit from "express-rate-limit";
 import {
   RequestUploadUrlBody,
@@ -13,6 +13,7 @@ import {
 
 const router: IRouter = Router();
 const storage = new ObjectStorageService();
+const ACCEPTED_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 const uploadUrlLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 15,
@@ -32,10 +33,64 @@ router.post(
     }
 
     try {
-      const upload = await storage.createUpload();
+      const upload = await storage.createUpload(parsed.data.contentType);
       res.json(RequestUploadUrlResponse.parse(upload));
     } catch (error) {
       req.log.error({ err: error }, "Unable to create photo upload URL");
+      res.status(503).json({ error: "Photo uploads are temporarily unavailable." });
+    }
+  },
+);
+
+router.put(
+  "/storage/uploads/:uploadId",
+  uploadUrlLimiter,
+  raw({
+    type: ["image/jpeg", "image/png", "image/webp"],
+    limit: "10mb",
+  }),
+  async (req, res): Promise<void> => {
+    if (!storage.isLocalStorageEnabled()) {
+      res.status(404).json({ error: "Local uploads are not enabled." });
+      return;
+    }
+
+    const uploadId = req.params.uploadId;
+    const contentType = req.get("content-type")?.split(";")[0] ?? "";
+    const expiresAt = req.query.expiresAt;
+    const signature = req.query.signature;
+    if (
+      typeof uploadId !== "string" ||
+      !Buffer.isBuffer(req.body) ||
+      !ACCEPTED_IMAGE_TYPES.has(contentType) ||
+      typeof expiresAt !== "string" ||
+      typeof req.query.contentType !== "string" ||
+      req.query.contentType !== contentType ||
+      typeof signature !== "string"
+    ) {
+      res.status(400).json({ error: "The upload request is invalid or expired." });
+      return;
+    }
+
+    try {
+      await storage.saveLocalUpload(
+        uploadId,
+        expiresAt,
+        contentType,
+        signature,
+        req.body,
+      );
+      res.status(204).end();
+    } catch (error) {
+      if (error instanceof ObjectNotFoundError) {
+        res.status(400).json({ error: "The upload request is invalid or expired." });
+        return;
+      }
+      if (error instanceof Error && "code" in error && error.code === "EEXIST") {
+        res.status(409).json({ error: "This upload link has already been used." });
+        return;
+      }
+      req.log.error({ err: error }, "Unable to store uploaded profile image");
       res.status(503).json({ error: "Photo uploads are temporarily unavailable." });
     }
   },

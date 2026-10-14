@@ -30,3 +30,9 @@ Then run `ALLOW_DEMO_SEED=true pnpm run seed:demo`. Both passwords must be at le
 ## Production notes
 
 Before launching publicly, configure production database and object-storage access, use live Paystack keys, register the production webhook, and review the Terms, Privacy Notice, contact details, and moderation procedures. The test checkout credentials are not suitable for live payments.
+
+## Railway deployment
+
+The repository-root `railway.json` builds the web app and API server as one service. Link `DATABASE_URL` to the existing Postgres service, set `SESSION_SECRET`, `PAYSTACK_PUBLIC_KEY`, and `PAYSTACK_SECRET_KEY` as Railway service variables, and set `NODE_ENV=production`.
+
+Attach a persistent Railway volume to the app service at `/data` and set `UPLOADS_DIR=/data`; uploaded member photos are stored there. Do not commit secret values. Before the first launch or a database schema change, apply the schema with `pnpm --filter @workspace/db run push` using the Railway database connection, and review any proposed changes before confirming them.

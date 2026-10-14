@@ -1,4 +1,6 @@
 import express, { type Express } from "express";
+import { existsSync } from "node:fs";
+import path from "node:path";
 import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
 import pinoHttp from "pino-http";
@@ -65,6 +67,30 @@ export const sessionMiddleware = session({
 app.use(sessionMiddleware);
 
 app.use("/api", router);
+
+const webBuildDirectory = path.resolve(
+  process.cwd(),
+  "artifacts/confluence/dist/public",
+);
+const webEntryPath = path.join(webBuildDirectory, "index.html");
+if (existsSync(webEntryPath)) {
+  app.use(express.static(webBuildDirectory));
+  app.use((req, res, next) => {
+    if (
+      (req.method !== "GET" && req.method !== "HEAD") ||
+      req.path.startsWith("/api") ||
+      req.path.startsWith("/socket.io")
+    ) {
+      next();
+      return;
+    }
+    res.sendFile(webEntryPath, (error) => {
+      if (error) {
+        next(error);
+      }
+    });
+  });
+}
 
 app.use(
   (

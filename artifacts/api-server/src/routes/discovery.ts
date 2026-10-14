@@ -10,7 +10,6 @@ import {
 } from "@workspace/db";
 import {
   GetDiscoveryFeedResponse,
-  FreeLikeLimitError,
   RecordSwipeBody,
   RecordSwipeParams,
   RecordSwipeResponse,
@@ -351,13 +350,11 @@ router.post(
       return;
     }
     if (result.kind === "limit") {
-      res.status(403).json(
-        FreeLikeLimitError.parse({
-          error: "Your five free likes have been used. Upgrade to Premium or wait for the next like to reset.",
-          limit: FREE_LIKE_LIMIT,
-          resetsAt: result.resetsAt,
-        }),
-      );
+      res.status(403).json({
+        error: "Your five free likes have been used. Upgrade to Premium or wait for the next like to reset.",
+        limit: FREE_LIKE_LIMIT,
+        resetsAt: result.resetsAt,
+      });
       return;
     }
 
