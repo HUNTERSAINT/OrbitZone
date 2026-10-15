@@ -27,6 +27,8 @@ For a development-only seed, set these secrets:
 
 Then run `ALLOW_DEMO_SEED=true pnpm run seed:demo`. Both passwords must be at least 12 characters. The seed is idempotent, does not overwrite existing accounts, and intentionally refuses to run in production.
 
+For the production admin login, set `ORBITZONE_ADMIN_PASSWORD` securely and run `ALLOW_ADMIN_SEED=true pnpm run seed:admin` against the Railway database. This seeds only `admin@orbitzone.test`; it refuses to elevate an existing non-admin account. Remove the one-time seed flag and password variable after the operation.
+
 ## Production notes
 
 Before launching publicly, configure production database and object-storage access, use live Paystack keys, register the production webhook, and review the Terms, Privacy Notice, contact details, and moderation procedures. The test checkout credentials are not suitable for live payments.
