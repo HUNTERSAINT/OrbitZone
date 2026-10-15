@@ -1242,7 +1242,8 @@ components:
       properties:
         uploadURL:
           type: string
-          format: uri
+          description: Absolute HTTPS object-storage URL or same-origin Railway upload route.
+          pattern: "^(https://|/api/storage/uploads/)"
         objectPath:
           type: string
     DiscoveryFeed:

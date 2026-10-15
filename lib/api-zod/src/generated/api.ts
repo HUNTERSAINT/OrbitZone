@@ -259,8 +259,11 @@ export const RequestUploadUrlBody = zod.object({
   "contentType": zod.enum(['image/jpeg', 'image/png', 'image/webp'])
 })
 
+export const requestUploadUrlResponseUploadURLRegExp = new RegExp('^(https://|/api/storage/uploads/)');
+
+
 export const RequestUploadUrlResponse = zod.object({
-  "uploadURL": zod.string().url(),
+  "uploadURL": zod.string().regex(requestUploadUrlResponseUploadURLRegExp).describe('Absolute HTTPS object-storage URL or same-origin Railway upload route.'),
   "objectPath": zod.string()
 })
 

@@ -168,6 +168,10 @@ export interface UploadUrlRequest {
 }
 
 export interface UploadUrlResponse {
+  /**
+     * Absolute HTTPS object-storage URL or same-origin Railway upload route.
+     * @pattern ^(https://|/api/storage/uploads/)
+     */
   uploadURL: string;
   objectPath: string;
 }
